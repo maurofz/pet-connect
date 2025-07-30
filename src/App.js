@@ -10,13 +10,15 @@ import SearchPets from "./components/SearchPets";
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/feed" element={<Feed />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/pet/:id" element={<PetDetail />} />
-        <Route path="/search" element={<SearchPets />} />
-      </Routes>
+      <div className="app-container">
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/feed" element={<Feed />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/pet/:id" element={<PetDetail />} />
+          <Route path="/search" element={<SearchPets />} />
+        </Routes>
+      </div>
     </Router>
   );
 }

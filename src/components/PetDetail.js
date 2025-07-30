@@ -9,6 +9,7 @@ export default function PetDetail() {
   const [isApplying, setIsApplying] = useState(false);
   const [applicationSent, setApplicationSent] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   // Sample pet data
@@ -158,12 +159,61 @@ export default function PetDetail() {
     }
   };
 
+  const navigateToProfile = () => {
+    setShowUserMenu(false);
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("currentUser");
+    setShowUserMenu(false);
+    navigate("/");
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
+  };
+
+  const navigateToFeed = () => {
+    navigate("/feed");
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showUserMenu && !event.target.closest('.header-icons')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   if (!pet || !owner) {
     return (
       <div className="phone">
         <div className="header">
           <div className="back-btn" onClick={handleBack}>‹</div>
           Cargando...
+          <div className="header-icons">
+            <div className="icon" onClick={navigateToFeed}>🏠</div>
+            <div className="icon" onClick={toggleUserMenu}>👤</div>
+          </div>
+          {showUserMenu && (
+            <div className="user-menu">
+              <div className="user-menu-item" onClick={navigateToProfile}>
+                <span>👤</span>
+                Mi Perfil
+              </div>
+              <div className="user-menu-item" onClick={handleLogout}>
+                <span>🚪</span>
+                Cerrar Sesión
+              </div>
+            </div>
+          )}
         </div>
         <div className="content">
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
@@ -181,7 +231,21 @@ export default function PetDetail() {
         Detalle de Mascota
         <div className="header-icons">
           <div className="icon" onClick={handleShare}>📤</div>
+          <div className="icon" onClick={navigateToFeed}>🏠</div>
+          <div className="icon" onClick={toggleUserMenu}>👤</div>
         </div>
+        {showUserMenu && (
+          <div className="user-menu">
+            <div className="user-menu-item" onClick={navigateToProfile}>
+              <span>👤</span>
+              Mi Perfil
+            </div>
+            <div className="user-menu-item" onClick={handleLogout}>
+              <span>🚪</span>
+              Cerrar Sesión
+            </div>
+          </div>
+        )}
       </div>
       <div className="content">
         <div className="pet-detail">

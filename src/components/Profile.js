@@ -183,11 +183,19 @@ export default function Profile() {
     }
   };
 
+  const navigateToFeed = () => {
+    navigate("/feed");
+  };
+
   if (!user) {
     return (
       <div className="phone">
         <div className="header">
           Cargando...
+          <div className="header-icons">
+            <div className="icon" onClick={navigateToFeed}>🏠</div>
+            <div className="icon" onClick={handleLogout}>🚪</div>
+          </div>
         </div>
         <div className="content">
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
@@ -203,6 +211,7 @@ export default function Profile() {
       <div className="header">
         Mi Perfil
         <div className="header-icons">
+          <div className="icon" onClick={navigateToFeed}>🏠</div>
           <div className="icon" onClick={handleEditProfile}>✏️</div>
           <div className="icon" onClick={handleLogout}>🚪</div>
         </div>

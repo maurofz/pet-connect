@@ -8,6 +8,8 @@ export default function Feed() {
   const [likedPosts, setLikedPosts] = useState(new Set());
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [newPost, setNewPost] = useState({ content: "", tags: [] });
+  const [isLoading, setIsLoading] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
 
   // Sample data for posts
@@ -55,8 +57,11 @@ export default function Feed() {
 
   useEffect(() => {
     // Simulate loading posts from API
-    setPosts(samplePosts);
-    setFilteredPosts(samplePosts);
+    setTimeout(() => {
+      setPosts(samplePosts);
+      setFilteredPosts(samplePosts);
+      setIsLoading(false);
+    }, 1000);
   }, []);
 
   useEffect(() => {
@@ -100,7 +105,15 @@ export default function Feed() {
 
   const handleShare = (postId) => {
     // Share functionality
-    alert(`Compartiendo post ${postId} - Funcionalidad en desarrollo`);
+    if (navigator.share) {
+      navigator.share({
+        title: 'PetConnect Post',
+        text: 'Mira este post interesante en PetConnect',
+        url: window.location.href
+      });
+    } else {
+      alert(`Compartiendo post ${postId} - Funcionalidad en desarrollo`);
+    }
   };
 
   const handleSearch = () => {
@@ -140,8 +153,83 @@ export default function Feed() {
     setNewPost(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
   };
 
-  const navigateToProfile = () => navigate("/profile");
+  const navigateToProfile = () => {
+    setShowUserMenu(false);
+    navigate("/profile");
+  };
+
   const navigateToSearch = () => navigate("/search");
+
+  const handleLogout = () => {
+    localStorage.removeItem("currentUser");
+    setShowUserMenu(false);
+    navigate("/");
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showUserMenu && !event.target.closest('.header-icons')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
+  if (isLoading) {
+    return (
+      <div className="phone">
+        <div className="header">
+          Feed Principal
+          <div className="header-icons">
+            <div className="icon">🔍</div>
+            <div className="icon">➕</div>
+            <div className="icon" onClick={toggleUserMenu}>👤</div>
+          </div>
+          {showUserMenu && (
+            <div className="user-menu">
+              <div className="user-menu-item" onClick={navigateToProfile}>
+                <span>👤</span>
+                Mi Perfil
+              </div>
+              <div className="user-menu-item" onClick={handleLogout}>
+                <span>🚪</span>
+                Cerrar Sesión
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="content">
+          <div style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "200px",
+            flexDirection: "column",
+            gap: "16px"
+          }}>
+            <div style={{
+              width: "40px",
+              height: "40px",
+              border: "4px solid #f3f3f3",
+              borderTop: "4px solid #667eea",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }}></div>
+            <p style={{ color: "#666", fontSize: "14px" }}>Cargando publicaciones...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="phone">
@@ -150,8 +238,20 @@ export default function Feed() {
         <div className="header-icons">
           <div className="icon" onClick={navigateToSearch}>🔍</div>
           <div className="icon" onClick={() => setShowNewPostForm(true)}>➕</div>
-          <div className="icon">🔔</div>
+          <div className="icon" onClick={toggleUserMenu}>👤</div>
         </div>
+        {showUserMenu && (
+          <div className="user-menu">
+            <div className="user-menu-item" onClick={navigateToProfile}>
+              <span>👤</span>
+              Mi Perfil
+            </div>
+            <div className="user-menu-item" onClick={handleLogout}>
+              <span>🚪</span>
+              Cerrar Sesión
+            </div>
+          </div>
+        )}
       </div>
       <div className="content">
         <div className="feed-actions">
@@ -181,46 +281,84 @@ export default function Feed() {
                 onChange={(e) => setNewPost(prev => ({ ...prev, content: e.target.value }))}
                 style={{
                   width: "100%",
-                  minHeight: "80px",
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "8px",
-                  padding: "10px",
-                  resize: "vertical"
+                  minHeight: "100px",
+                  border: "2px solid #e0e0e0",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  resize: "vertical",
+                  fontSize: "15px",
+                  fontFamily: "inherit",
+                  transition: "all 0.3s ease"
                 }}
               />
-              <div className="post-tags">
+              <div className="post-tags" style={{ marginTop: "12px" }}>
                 {newPost.tags.map(tag => (
-                  <span key={tag} className="post-tag" onClick={() => removeTag(tag)} style={{ cursor: "pointer" }}>
+                  <span
+                    key={tag}
+                    className="post-tag"
+                    onClick={() => removeTag(tag)}
+                    style={{ cursor: "pointer" }}
+                  >
                     {tag} ×
                   </span>
                 ))}
               </div>
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 <button
                   onClick={() => addTag("Adopción")}
-                  style={{ marginRight: 5, padding: "4px 8px", fontSize: "12px", background: "#e8f5e8", border: "none", borderRadius: "12px", cursor: "pointer" }}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    background: "#e8f5e8",
+                    border: "none",
+                    borderRadius: "16px",
+                    cursor: "pointer",
+                    color: "#4caf50",
+                    fontWeight: "500",
+                    transition: "all 0.3s ease"
+                  }}
                 >
                   + Adopción
                 </button>
                 <button
                   onClick={() => addTag("Consejos")}
-                  style={{ marginRight: 5, padding: "4px 8px", fontSize: "12px", background: "#e8f5e8", border: "none", borderRadius: "12px", cursor: "pointer" }}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    background: "#e8f5e8",
+                    border: "none",
+                    borderRadius: "16px",
+                    cursor: "pointer",
+                    color: "#4caf50",
+                    fontWeight: "500",
+                    transition: "all 0.3s ease"
+                  }}
                 >
                   + Consejos
                 </button>
                 <button
                   onClick={() => addTag("Encontrado")}
-                  style={{ marginRight: 5, padding: "4px 8px", fontSize: "12px", background: "#e8f5e8", border: "none", borderRadius: "12px", cursor: "pointer" }}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    background: "#e8f5e8",
+                    border: "none",
+                    borderRadius: "16px",
+                    cursor: "pointer",
+                    color: "#4caf50",
+                    fontWeight: "500",
+                    transition: "all 0.3s ease"
+                  }}
                 >
                   + Encontrado
                 </button>
               </div>
             </div>
-            <div className="post-actions">
-              <button className="btn-primary" onClick={handleNewPost} style={{ marginRight: 10 }}>
+            <div className="post-actions" style={{ justifyContent: "space-between", padding: "16px 20px" }}>
+              <button className="btn-primary" onClick={handleNewPost} style={{ margin: 0, width: "auto", padding: "12px 24px" }}>
                 Publicar
               </button>
-              <button className="btn-secondary" onClick={() => setShowNewPostForm(false)}>
+              <button className="btn-secondary" onClick={() => setShowNewPostForm(false)} style={{ margin: 0, width: "auto", padding: "12px 24px" }}>
                 Cancelar
               </button>
             </div>
@@ -237,7 +375,7 @@ export default function Feed() {
               </div>
             </div>
             <div className="post-content">
-              <p style={{ marginBottom: 10 }}>{post.content}</p>
+              <p>{post.content}</p>
               <div className="post-tags">
                 {post.tags.map(tag => (
                   <span key={tag} className="post-tag">{tag}</span>
@@ -264,13 +402,30 @@ export default function Feed() {
 
         {filteredPosts.length === 0 && searchTerm && (
           <div style={{ textAlign: "center", padding: "40px 20px", color: "#666" }}>
-            <p>No se encontraron publicaciones para "{searchTerm}"</p>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
+            <p style={{ fontSize: "16px", marginBottom: "8px" }}>No se encontraron publicaciones</p>
+            <p style={{ fontSize: "14px", marginBottom: "20px" }}>para "{searchTerm}"</p>
             <button
               className="btn-primary"
               onClick={() => setSearchTerm("")}
-              style={{ marginTop: 10 }}
+              style={{ width: "auto", padding: "12px 24px" }}
             >
               Ver todas las publicaciones
+            </button>
+          </div>
+        )}
+
+        {filteredPosts.length === 0 && !searchTerm && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#666" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>📝</div>
+            <p style={{ fontSize: "16px", marginBottom: "8px" }}>No hay publicaciones</p>
+            <p style={{ fontSize: "14px", marginBottom: "20px" }}>¡Sé el primero en compartir algo!</p>
+            <button
+              className="btn-primary"
+              onClick={() => setShowNewPostForm(true)}
+              style={{ width: "auto", padding: "12px 24px" }}
+            >
+              Crear primera publicación
             </button>
           </div>
         )}

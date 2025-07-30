@@ -6,6 +6,7 @@ export default function SearchPets() {
   const [activeTab, setActiveTab] = useState("Todos");
   const [filteredPets, setFilteredPets] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [filters, setFilters] = useState({
     location: "",
     age: "",
@@ -204,6 +205,39 @@ export default function SearchPets() {
     }));
   };
 
+  const navigateToProfile = () => {
+    setShowUserMenu(false);
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("currentUser");
+    setShowUserMenu(false);
+    navigate("/");
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
+  };
+
+  const navigateToFeed = () => {
+    navigate("/feed");
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showUserMenu && !event.target.closest('.header-icons')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case "available":
@@ -231,6 +265,22 @@ export default function SearchPets() {
       <div className="header">
         <div className="back-btn" onClick={() => navigate(-1)}>‹</div>
         Buscar Mascotas
+        <div className="header-icons">
+          <div className="icon" onClick={navigateToFeed}>🏠</div>
+          <div className="icon" onClick={toggleUserMenu}>👤</div>
+        </div>
+        {showUserMenu && (
+          <div className="user-menu">
+            <div className="user-menu-item" onClick={navigateToProfile}>
+              <span>👤</span>
+              Mi Perfil
+            </div>
+            <div className="user-menu-item" onClick={handleLogout}>
+              <span>🚪</span>
+              Cerrar Sesión
+            </div>
+          </div>
+        )}
       </div>
       <div className="content">
         <div className="feed-actions">
