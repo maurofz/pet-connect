@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [generalError, setGeneralError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const navigate = useNavigate();
 
   // Simulated user database
@@ -17,31 +21,71 @@ export default function Login() {
   ];
 
   const validateEmail = (email) => {
+    if (!email) return "El email es requerido";
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    if (!emailRegex.test(email)) return "Ingresa un email válido";
+    return "";
   };
 
   const validatePassword = (password) => {
-    return password.length >= 6;
+    if (!password) return "La contraseña es requerida";
+    if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres";
+    return "";
+  };
+
+  // Real-time validation for email
+  useEffect(() => {
+    if (emailTouched) {
+      setEmailError(validateEmail(email));
+    }
+  }, [email, emailTouched]);
+
+  // Real-time validation for password
+  useEffect(() => {
+    if (passwordTouched) {
+      setPasswordError(validatePassword(password));
+    }
+  }, [password, passwordTouched]);
+
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    setGeneralError(""); // Clear general error when user starts typing
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    setGeneralError(""); // Clear general error when user starts typing
+  };
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true);
+    setEmailError(validateEmail(email));
+  };
+
+  const handlePasswordBlur = () => {
+    setPasswordTouched(true);
+    setPasswordError(validatePassword(password));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
 
-    // Validation
-    if (!email || !password) {
-      setError("Por favor, ingresa tu email y contraseña.");
-      return;
-    }
+    // Mark both fields as touched to show all errors
+    setEmailTouched(true);
+    setPasswordTouched(true);
 
-    if (!validateEmail(email)) {
-      setError("Por favor, ingresa un email válido.");
-      return;
-    }
+    // Clear previous errors
+    setGeneralError("");
 
-    if (!validatePassword(password)) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    // Validate both fields
+    const emailValidation = validateEmail(email);
+    const passwordValidation = validatePassword(password);
+
+    setEmailError(emailValidation);
+    setPasswordError(passwordValidation);
+
+    // If there are validation errors, don't proceed
+    if (emailValidation || passwordValidation) {
       return;
     }
 
@@ -62,7 +106,10 @@ export default function Login() {
         // Navigate to feed
         navigate("/feed");
       } else {
-        setError("Email o contraseña incorrectos. Intenta con maria@petconnect.com / 123456");
+        setGeneralError("Email o contraseña incorrectos. Verifica tus credenciales.");
+        // Clear password field for security
+        setPassword("");
+        setPasswordTouched(false);
       }
       setIsLoading(false);
     }, 1500);
@@ -71,6 +118,11 @@ export default function Login() {
   const handleDemoLogin = () => {
     setEmail("maria@petconnect.com");
     setPassword("123456");
+    setEmailError("");
+    setPasswordError("");
+    setGeneralError("");
+    setEmailTouched(false);
+    setPasswordTouched(false);
   };
 
   const handleForgotPassword = () => {
@@ -81,10 +133,14 @@ export default function Login() {
     alert("Funcionalidad de registro en desarrollo. Usa las credenciales de demo.");
   };
 
+  const getFieldClassName = (fieldError, isTouched) => {
+    if (!isTouched) return "form-group";
+    return fieldError ? "form-group form-group-error" : "form-group form-group-success";
+  };
+
   return (
     <div className="phone">
       <div className="header">
-        <div className="back-btn">‹</div>
         PetConnect
       </div>
       <div className="content">
@@ -93,30 +149,40 @@ export default function Login() {
           <h1 className="app-title">Red Social de Adopción</h1>
           <p className="subtitle">Conecta mascotas con familias</p>
 
-          {error && <div className="error-message">{error}</div>}
+          {generalError && <div className="error-message">{generalError}</div>}
 
-          <div className="form-group">
+          <div className={getFieldClassName(emailError, emailTouched)}>
             <label>Email</label>
             <input
               type="email"
               placeholder="tu@email.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
               autoComplete="username"
               disabled={isLoading}
+              className={emailError && emailTouched ? "input-error" : ""}
             />
+            {emailError && emailTouched && (
+              <div className="field-error">
+                <span className="error-icon">⚠️</span>
+                {emailError}
+              </div>
+            )}
           </div>
 
-          <div className="form-group">
+          <div className={getFieldClassName(passwordError, passwordTouched)}>
             <label>Contraseña</label>
             <div style={{ position: "relative" }}>
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
+                onBlur={handlePasswordBlur}
                 autoComplete="current-password"
                 disabled={isLoading}
+                className={passwordError && passwordTouched ? "input-error" : ""}
               />
               <button
                 type="button"
@@ -136,6 +202,12 @@ export default function Login() {
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
+            {passwordError && passwordTouched && (
+              <div className="field-error">
+                <span className="error-icon">⚠️</span>
+                {passwordError}
+              </div>
+            )}
           </div>
 
           <button
