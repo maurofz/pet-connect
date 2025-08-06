@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiService from "../services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -12,13 +13,6 @@ export default function Login() {
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const navigate = useNavigate();
-
-  // Simulated user database
-  const users = [
-    { email: "maria@petconnect.com", password: "123456", name: "María González" },
-    { email: "carlos@petconnect.com", password: "123456", name: "Carlos Mendoza" },
-    { email: "dr.vet@petconnect.com", password: "123456", name: "Dr. Veterinario" }
-  ];
 
   const validateEmail = (email) => {
     if (!email) return "El email es requerido";
@@ -91,28 +85,27 @@ export default function Login() {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const user = users.find(u => u.email === email && u.password === password);
+    try {
+      // Call the API
+      const response = await apiService.auth.login({ email, password });
 
-      if (user) {
-        // Store user data in localStorage (in a real app, you'd use JWT tokens)
-        localStorage.setItem("currentUser", JSON.stringify({
-          email: user.email,
-          name: user.name,
-          isLoggedIn: true
-        }));
+      // Store token and user data
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("currentUser", JSON.stringify({
+        ...response.data.user,
+        isLoggedIn: true
+      }));
 
-        // Navigate to feed
-        navigate("/feed");
-      } else {
-        setGeneralError("Email o contraseña incorrectos. Verifica tus credenciales.");
-        // Clear password field for security
-        setPassword("");
-        setPasswordTouched(false);
-      }
+      // Navigate to feed
+      navigate("/feed");
+    } catch (error) {
+      setGeneralError(error.message || "Error al iniciar sesión");
+      // Clear password field for security
+      setPassword("");
+      setPasswordTouched(false);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleDemoLogin = () => {
