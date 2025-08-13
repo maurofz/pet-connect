@@ -4,6 +4,16 @@
 /node_modules
 /.pnp
 .pnp.js
+.env
+.jpg
+.png
+.jpeg
+.gif
+.mp4
+.mp3
+.wav
+.ogg
+.webm
 
 # testing
 /coverage
