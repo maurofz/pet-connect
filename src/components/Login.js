@@ -64,46 +64,56 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Mark both fields as touched to show all errors
+    // Marcar ambos campos como tocados para mostrar errores
     setEmailTouched(true);
     setPasswordTouched(true);
 
-    // Clear previous errors
+    // Limpiar errores previos
     setGeneralError("");
 
-    // Validate both fields
+    // Validar ambos campos
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
 
     setEmailError(emailValidation);
     setPasswordError(passwordValidation);
 
-    // If there are validation errors, don't proceed
+    // Si hay errores de validación, no continuar
     if (emailValidation || passwordValidation) {
       return;
     }
 
     setIsLoading(true);
 
-    try {
-      // Call the API
-      const response = await apiService.auth.login({ email, password });
+    // Simular llamada a API
+    setTimeout(() => {
+      const user = users.find(u => u.email === email);
 
-      // Store token and user data
-      localStorage.setItem("token", response.data.token);
+      if (!user) {
+        setEmailError("El email no está registrado");
+        setPasswordError("");
+        setIsLoading(false);
+        return;
+      }
+
+      if (user.password !== password) {
+        setPasswordError("La contraseña es incorrecta");
+        setEmailError("");
+        setPassword(""); // Limpiar campo por seguridad
+        // setPasswordTouched(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Si todo está bien, loguear
       localStorage.setItem("currentUser", JSON.stringify({
-        ...response.data.user,
+        email: user.email,
+        name: user.name,
         isLoggedIn: true
       }));
 
-      // Navigate to feed
+      // Navegar al feed
       navigate("/feed");
-    } catch (error) {
-      setGeneralError(error.message || "Error al iniciar sesión");
-      // Clear password field for security
-      setPassword("");
-      setPasswordTouched(false);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -222,20 +232,7 @@ export default function Login() {
             Usar Credenciales Demo
           </button>
 
-          <div style={{ marginTop: 20, textAlign: "center" }}>
-            <p style={{ color: "#666", fontSize: 12, marginBottom: 5 }}>
-              Credenciales de prueba:
-            </p>
-            <p style={{ color: "#667eea", fontSize: 11, marginBottom: 5 }}>
-              maria@petconnect.com / 123456
-            </p>
-            <p style={{ color: "#667eea", fontSize: 11, marginBottom: 5 }}>
-              carlos@petconnect.com / 123456
-            </p>
-            <p style={{ color: "#667eea", fontSize: 11 }}>
-              dr.vet@petconnect.com / 123456
-            </p>
-          </div>
+
 
           <div style={{ marginTop: 20 }}>
             <p style={{ color: "#666", fontSize: 12 }}>¿No tienes cuenta?</p>
