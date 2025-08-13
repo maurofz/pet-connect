@@ -294,9 +294,22 @@ export default function Applications() {
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: "18px",
-                      fontWeight: "bold"
+                      fontWeight: "bold",
+                      overflow: "hidden"
                     }}>
-                      {application.user.avatar || application.user.name.substring(0, 2).toUpperCase()}
+                      {application.user.avatar ? (
+                        <img
+                          src={`http://localhost:5000${application.user.avatar}`}
+                          alt={application.user.name}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover"
+                          }}
+                        />
+                      ) : (
+                        application.user.name.substring(0, 2).toUpperCase()
+                      )}
                     </div>
                     <div style={{ flex: 1 }}>
                       <h4 style={{ margin: "0 0 4px 0", color: "#333" }}>{application.user.name}</h4>

@@ -111,6 +111,14 @@ const petSchema = new mongoose.Schema({
       maxlength: [500, 'Las necesidades especiales no pueden tener más de 500 caracteres']
     }
   },
+  characteristics: [{
+    type: String,
+    trim: true
+  }],
+  requirements: [{
+    type: String,
+    trim: true
+  }],
   location: {
     city: String,
     state: String,

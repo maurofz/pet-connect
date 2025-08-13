@@ -111,35 +111,22 @@ export default function Profile() {
     try {
       setIsLoading(true);
       setGeneralError("");
-      setSuccessMessage("");
 
-      const updateData = {
-        name: formData.name,
-        phone: formData.phone,
-        bio: formData.bio,
-        location: formData.location,
-        preferences: formData.preferences
-      };
+      await apiService.auth.updateProfile(formData);
 
-      const response = await apiService.auth.updateProfile(updateData);
+      // Update local user data
+      setUser(prev => ({
+        ...prev,
+        ...formData
+      }));
 
-      setUser(response.data.user);
-      setIsEditing(false);
       setSuccessMessage("Perfil actualizado exitosamente");
-
-      // Update localStorage
-      const currentUserData = localStorage.getItem("currentUser");
-      if (currentUserData) {
-        const currentUser = JSON.parse(currentUserData);
-        currentUser.name = response.data.user.name;
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-      }
-
       setTimeout(() => setSuccessMessage(""), 3000);
+      setIsEditing(false);
 
     } catch (error) {
       console.error("Error updating profile:", error);
-      setGeneralError("Error al actualizar el perfil. Intenta nuevamente.");
+      setGeneralError(error.message || "Error al actualizar el perfil");
     } finally {
       setIsLoading(false);
     }
@@ -149,6 +136,7 @@ export default function Profile() {
     setIsEditing(false);
     setGeneralError("");
     setSuccessMessage("");
+
     // Reset form data to current user data
     if (user) {
       setFormData({
@@ -175,13 +163,18 @@ export default function Profile() {
     const file = event.target.files[0];
     if (!file) return;
 
+    if (file.size > 5 * 1024 * 1024) {
+      setGeneralError("La imagen debe ser menor a 5MB");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setGeneralError("");
-      setSuccessMessage("");
 
       const response = await apiService.auth.uploadAvatar(file);
 
+      // Update local user data
       setUser(prev => ({
         ...prev,
         avatar: response.data.avatar
@@ -192,36 +185,43 @@ export default function Profile() {
 
     } catch (error) {
       console.error("Error uploading avatar:", error);
-      setGeneralError("Error al subir la imagen. Intenta nuevamente.");
+      setGeneralError(error.message || "Error al subir el avatar");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleChangePassword = async () => {
-    // Validate password fields
+    // Validate passwords
     const errors = {};
-    if (!passwordData.currentPassword) errors.currentPassword = "Contraseña actual requerida";
-    if (!passwordData.newPassword) errors.newPassword = "Nueva contraseña requerida";
-    if (passwordData.newPassword.length < 6) errors.newPassword = "La contraseña debe tener al menos 6 caracteres";
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = "Contraseña actual es requerida";
+    }
+    if (!passwordData.newPassword) {
+      errors.newPassword = "Nueva contraseña es requerida";
+    } else if (passwordData.newPassword.length < 6) {
+      errors.newPassword = "La contraseña debe tener al menos 6 caracteres";
+    }
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       errors.confirmPassword = "Las contraseñas no coinciden";
     }
 
+    setPasswordErrors(errors);
     if (Object.keys(errors).length > 0) {
-      setPasswordErrors(errors);
       return;
     }
 
     try {
       setIsLoading(true);
       setGeneralError("");
-      setSuccessMessage("");
 
       await apiService.auth.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
+
+      setSuccessMessage("Contraseña cambiada exitosamente");
+      setTimeout(() => setSuccessMessage(""), 3000);
 
       setShowChangePassword(false);
       setPasswordData({
@@ -230,53 +230,21 @@ export default function Profile() {
         confirmPassword: ""
       });
       setPasswordErrors({});
-      setSuccessMessage("Contraseña actualizada exitosamente");
-      setTimeout(() => setSuccessMessage(""), 3000);
 
     } catch (error) {
       console.error("Error changing password:", error);
-      if (error.message.includes("incorrecta")) {
-        setPasswordErrors({ currentPassword: "Contraseña actual incorrecta" });
-      } else {
-        setGeneralError("Error al cambiar la contraseña. Intenta nuevamente.");
-      }
+      setGeneralError(error.message || "Error al cambiar la contraseña");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await apiService.auth.logout();
-    } catch (error) {
-      console.error("Error during logout:", error);
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("currentUser");
-      navigate("/");
-    }
-  };
-
   const handleAddPet = () => {
-    navigate("/add-pet"); // Redirect to add pet page
+    navigate("/add-pet");
   };
 
-  const handleEditPet = (petId) => {
-    navigate(`/pet/${petId}`);
-  };
-
-  const handleDeletePet = async (petId) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar esta mascota?")) {
-      try {
-        await apiService.pets.delete(petId);
-        setMyPets(prev => prev.filter(pet => pet._id !== petId));
-        setSuccessMessage("Mascota eliminada exitosamente");
-        setTimeout(() => setSuccessMessage(""), 3000);
-      } catch (error) {
-        console.error("Error deleting pet:", error);
-        setGeneralError("Error al eliminar la mascota. Intenta nuevamente.");
-      }
-    }
+  const handleEditPet = (pet) => {
+    navigate(`/edit-pet/${pet._id}`);
   };
 
   const handleSearchAdopt = () => {
@@ -305,6 +273,12 @@ export default function Profile() {
 
   const navigateToFeed = () => {
     navigate("/feed");
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("currentUser");
+    navigate("/");
   };
 
   if (isLoading && !user) {
@@ -358,65 +332,62 @@ export default function Profile() {
         </div>
       </div>
       <div className="content">
-        {successMessage && (
-          <div style={{
-            background: "#4caf50",
-            color: "white",
-            padding: "10px",
-            borderRadius: "5px",
-            margin: "10px 0",
-            textAlign: "center"
-          }}>
-            {successMessage}
-          </div>
-        )}
-
         {generalError && (
           <div style={{
             background: "#f44336",
             color: "white",
-            padding: "10px",
-            borderRadius: "5px",
-            margin: "10px 0",
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "16px",
             textAlign: "center"
           }}>
             {generalError}
           </div>
         )}
 
-        <div className="profile-card">
-          <div className="profile-header">
+        {successMessage && (
+          <div style={{
+            background: "#4caf50",
+            color: "white",
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            {successMessage}
+          </div>
+        )}
+
+        {/* Profile Section */}
+        <div className="section">
+          <div style={{ textAlign: "center", marginBottom: "20px" }}>
             <div className="avatar-container">
-              {user.avatar ? (
-                <img
-                  src={`http://localhost:5000${user.avatar}`}
-                  alt="Avatar"
-                  className="avatar-image"
-                  style={{
-                    width: "60px",
-                    height: "60px",
-                    borderRadius: "50%",
-                    objectFit: "cover"
-                  }}
-                />
-              ) : (
-                <div className="avatar">{user.name ? user.name.substring(0, 2).toUpperCase() : "U"}</div>
-              )}
+              <img
+                src={user.avatar ? `http://localhost:5000${user.avatar}` : "/default-avatar.png"}
+                alt="Avatar"
+                style={{
+                  width: "100px",
+                  height: "100px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: "3px solid #4caf50"
+                }}
+              />
               {isEditing && (
                 <label style={{
                   position: "absolute",
-                  bottom: "-5px",
-                  right: "-5px",
-                  background: "#667eea",
+                  bottom: "0",
+                  right: "0",
+                  background: "#4caf50",
                   color: "white",
                   borderRadius: "50%",
-                  width: "25px",
-                  height: "25px",
+                  width: "30px",
+                  height: "30px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  fontSize: "12px"
+                  fontSize: "16px"
                 }}>
                   📷
                   <input
@@ -428,399 +399,495 @@ export default function Profile() {
                 </label>
               )}
             </div>
-            <div className="profile-info">
-              {isEditing ? (
+            <h2>{user.name}</h2>
+            <p style={{ color: "#666", margin: "5px 0" }}>{user.email}</p>
+          </div>
+
+          {isEditing ? (
+            <div>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Nombre completo
+                </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   style={{
-                    fontSize: "16px",
-                    fontWeight: "bold",
-                    border: "1px solid #e0e0e0",
-                    borderRadius: "4px",
-                    padding: "8px",
-                    marginBottom: "5px",
-                    width: "100%"
-                  }}
-                  placeholder="Tu nombre"
-                />
-              ) : (
-                <h3>{user.name}</h3>
-              )}
-              {isEditing ? (
-                <textarea
-                  value={formData.bio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                  style={{
-                    fontSize: "12px",
-                    border: "1px solid #e0e0e0",
-                    borderRadius: "4px",
-                    padding: "8px",
                     width: "100%",
-                    minHeight: "60px",
-                    resize: "vertical"
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px"
                   }}
-                  placeholder="Cuéntanos sobre ti..."
-                  maxLength={500}
                 />
-              ) : (
-                <p>{user.bio || "No hay biografía disponible"}</p>
-              )}
-              <div style={{ marginTop: 5 }}>
-                <span style={{ color: "#4caf50", fontSize: 12 }}>
-                  ● En línea
-                </span>
               </div>
-            </div>
-          </div>
 
-          {isEditing && (
-            <div style={{ marginTop: 15 }}>
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: "12px", color: "#666" }}>Teléfono:</label>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Teléfono
+                </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   style={{
-                    fontSize: "12px",
-                    border: "1px solid #e0e0e0",
-                    borderRadius: "4px",
-                    padding: "8px",
-                    width: "100%"
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px"
                   }}
-                  placeholder="+593 98 9254 630"
                 />
               </div>
 
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: "12px", color: "#666" }}>Ciudad:</label>
-                <input
-                  type="text"
-                  value={formData.location.city}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    location: { ...prev.location, city: e.target.value }
-                  }))}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Biografía
+                </label>
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
                   style={{
-                    fontSize: "12px",
-                    border: "1px solid #e0e0e0",
-                    borderRadius: "4px",
-                    padding: "8px",
-                    width: "100%"
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    minHeight: "100px",
+                    resize: "vertical"
                   }}
-                  placeholder="Portoviejo"
+                  placeholder="Cuéntanos sobre ti..."
                 />
               </div>
 
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: "12px", color: "#666" }}>Provincia:</label>
-                <input
-                  type="text"
-                  value={formData.location.state}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    location: { ...prev.location, state: e.target.value }
-                  }))}
-                  style={{
-                    fontSize: "12px",
-                    border: "1px solid #e0e0e0",
-                    borderRadius: "4px",
-                    padding: "8px",
-                    width: "100%"
-                  }}
-                  placeholder="Manabi"
-                />
+              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                    Ciudad
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location.city}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      location: { ...prev.location, city: e.target.value }
+                    }))}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "1px solid #ddd",
+                      borderRadius: "8px",
+                      fontSize: "16px"
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                    Provincia
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location.state}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      location: { ...prev.location, state: e.target.value }
+                    }))}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "1px solid #ddd",
+                      borderRadius: "8px",
+                      fontSize: "16px"
+                    }}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Tipos de mascotas preferidas
+                </label>
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px"
+                }}>
+                  {availablePetTypes.map(petType => (
+                    <button
+                      key={petType.value}
+                      type="button"
+                      onClick={() => handlePreferenceChange(
+                        petType.value,
+                        formData.preferences.petTypes.includes(petType.value) ? "remove" : "add"
+                      )}
+                      style={{
+                        padding: "8px 12px",
+                        border: "1px solid #ddd",
+                        borderRadius: "20px",
+                        background: formData.preferences.petTypes.includes(petType.value) ? "#4caf50" : "white",
+                        color: formData.preferences.petTypes.includes(petType.value) ? "white" : "#333",
+                        cursor: "pointer",
+                        fontSize: "14px"
+                      }}
+                    >
+                      {petType.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
                 <button
-                  className="btn-primary"
                   onClick={handleSaveProfile}
-                  style={{ flex: 1 }}
                   disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#4caf50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    cursor: isLoading ? "not-allowed" : "pointer"
+                  }}
                 >
-                  {isLoading ? "Guardando..." : "Guardar"}
+                  {isLoading ? "Guardando..." : "Guardar Cambios"}
                 </button>
                 <button
-                  className="btn-secondary"
                   onClick={handleCancelEdit}
-                  style={{ flex: 1 }}
                   disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#666",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    cursor: isLoading ? "not-allowed" : "pointer"
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ marginBottom: "16px" }}>
+                <strong>Teléfono:</strong> {user.phone || "No especificado"}
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <strong>Biografía:</strong> {user.bio || "No especificada"}
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <strong>Ubicación:</strong> {user.location?.city && user.location?.state
+                  ? `${user.location.city}, ${user.location.state}`
+                  : "No especificada"}
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <strong>Preferencias:</strong> {user.preferences?.petTypes?.length > 0
+                  ? user.preferences.petTypes.map(type => {
+                    const petType = availablePetTypes.find(pt => pt.value === type);
+                    return petType ? petType.label : type;
+                  }).join(", ")
+                  : "No especificadas"}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Change Password Section */}
+        <div className="section">
+          <h3>Cambiar Contraseña</h3>
+          {!showChangePassword ? (
+            <button
+              onClick={() => setShowChangePassword(true)}
+              style={{
+                padding: "12px 20px",
+                background: "#2196f3",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "16px",
+                cursor: "pointer"
+              }}
+            >
+              Cambiar Contraseña
+            </button>
+          ) : (
+            <div>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Contraseña Actual
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: passwordErrors.currentPassword ? "1px solid #f44336" : "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px"
+                  }}
+                />
+                {passwordErrors.currentPassword && (
+                  <div style={{ color: "#f44336", fontSize: "12px", marginTop: "5px" }}>
+                    {passwordErrors.currentPassword}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: passwordErrors.newPassword ? "1px solid #f44336" : "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px"
+                  }}
+                />
+                {passwordErrors.newPassword && (
+                  <div style={{ color: "#f44336", fontSize: "12px", marginTop: "5px" }}>
+                    {passwordErrors.newPassword}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontWeight: "600" }}>
+                  Confirmar Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: passwordErrors.confirmPassword ? "1px solid #f44336" : "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px"
+                  }}
+                />
+                {passwordErrors.confirmPassword && (
+                  <div style={{ color: "#f44336", fontSize: "12px", marginTop: "5px" }}>
+                    {passwordErrors.confirmPassword}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#4caf50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    cursor: isLoading ? "not-allowed" : "pointer"
+                  }}
+                >
+                  {isLoading ? "Cambiando..." : "Cambiar Contraseña"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowChangePassword(false);
+                    setPasswordData({
+                      currentPassword: "",
+                      newPassword: "",
+                      confirmPassword: ""
+                    });
+                    setPasswordErrors({});
+                  }}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#666",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    cursor: isLoading ? "not-allowed" : "pointer"
+                  }}
                 >
                   Cancelar
                 </button>
               </div>
             </div>
           )}
-
-          <div className="stats">
-            <div className="stat">
-              <div className="stat-number">{myPets.length}</div>
-              <div className="stat-label">Mis Mascotas</div>
-            </div>
-            <div className="stat">
-              <div className="stat-number">{user.isVerified ? "✓" : "○"}</div>
-              <div className="stat-label">Verificado</div>
-            </div>
-            <div className="stat">
-              <div className="stat-number">{user.role}</div>
-              <div className="stat-label">Rol</div>
-            </div>
-          </div>
-
-          <div className="preferences">
-            <h4>Preferencias de Mascotas</h4>
-            <div className="preference-tags">
-              {formData.preferences.petTypes.map(petType => {
-                const petTypeInfo = availablePetTypes.find(pt => pt.value === petType);
-                return (
-                  <span
-                    key={petType}
-                    className="preference-tag"
-                    onClick={() => isEditing && handlePreferenceChange(petType, "remove")}
-                    style={{ cursor: isEditing ? "pointer" : "default" }}
-                  >
-                    {petTypeInfo ? petTypeInfo.label : petType} {isEditing && "×"}
-                  </span>
-                );
-              })}
-              {isEditing && (
-                <div style={{ marginTop: "10px" }}>
-                  {availablePetTypes
-                    .filter(pt => !formData.preferences.petTypes.includes(pt.value))
-                    .map(petType => (
-                      <button
-                        key={petType.value}
-                        onClick={() => handlePreferenceChange(petType.value, "add")}
-                        style={{
-                          background: "#e3f2fd",
-                          color: "#1976d2",
-                          padding: "4px 8px",
-                          border: "none",
-                          borderRadius: "12px",
-                          fontSize: "12px",
-                          cursor: "pointer",
-                          margin: "2px"
-                        }}
-                      >
-                        + {petType.label}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="action-buttons">
-            <button className="btn-action btn-adopt" onClick={handleSearchAdopt}>
-              Buscar Adoptar
-            </button>
-            <button
-              className="btn-action btn-message"
-              onClick={() => navigate("/applications")}
-            >
-              Ver Aplicaciones
-            </button>
-            <button
-              className="btn-action btn-message"
-              onClick={() => setShowChangePassword(!showChangePassword)}
-            >
-              Cambiar Contraseña
-            </button>
-          </div>
         </div>
 
-        {showChangePassword && (
-          <div className="profile-card">
-            <h3 style={{ marginBottom: 15 }}>Cambiar Contraseña</h3>
-
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: "12px", color: "#666" }}>Contraseña Actual:</label>
-              <input
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                style={{
-                  fontSize: "12px",
-                  border: passwordErrors.currentPassword ? "1px solid #f44336" : "1px solid #e0e0e0",
-                  borderRadius: "4px",
-                  padding: "8px",
-                  width: "100%"
-                }}
-                placeholder="••••••••"
-              />
-              {passwordErrors.currentPassword && (
-                <div style={{ color: "#f44336", fontSize: "11px", marginTop: "2px" }}>
-                  {passwordErrors.currentPassword}
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: "12px", color: "#666" }}>Nueva Contraseña:</label>
-              <input
-                type="password"
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                style={{
-                  fontSize: "12px",
-                  border: passwordErrors.newPassword ? "1px solid #f44336" : "1px solid #e0e0e0",
-                  borderRadius: "4px",
-                  padding: "8px",
-                  width: "100%"
-                }}
-                placeholder="••••••••"
-              />
-              {passwordErrors.newPassword && (
-                <div style={{ color: "#f44336", fontSize: "11px", marginTop: "2px" }}>
-                  {passwordErrors.newPassword}
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: 15 }}>
-              <label style={{ fontSize: "12px", color: "#666" }}>Confirmar Nueva Contraseña:</label>
-              <input
-                type="password"
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                style={{
-                  fontSize: "12px",
-                  border: passwordErrors.confirmPassword ? "1px solid #f44336" : "1px solid #e0e0e0",
-                  borderRadius: "4px",
-                  padding: "8px",
-                  width: "100%"
-                }}
-                placeholder="••••••••"
-              />
-              {passwordErrors.confirmPassword && (
-                <div style={{ color: "#f44336", fontSize: "11px", marginTop: "2px" }}>
-                  {passwordErrors.confirmPassword}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
+        {/* My Pets Section */}
+        <div className="section">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3>Mis Mascotas ({myPets.length})</h3>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
-                className="btn-primary"
-                onClick={handleChangePassword}
-                style={{ flex: 1 }}
-                disabled={isLoading}
+                onClick={handleAddPet}
+                style={{
+                  padding: "8px 12px",
+                  background: "#4caf50",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  cursor: "pointer"
+                }}
               >
-                {isLoading ? "Cambiando..." : "Cambiar Contraseña"}
+                Agregar
               </button>
               <button
-                className="btn-secondary"
-                onClick={() => {
-                  setShowChangePassword(false);
-                  setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                  setPasswordErrors({});
+                onClick={() => navigate("/applications")}
+                style={{
+                  padding: "8px 12px",
+                  background: "#ff9800",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  cursor: "pointer"
                 }}
-                style={{ flex: 1 }}
-                disabled={isLoading}
               >
-                Cancelar
+                Ver Aplicaciones
               </button>
             </div>
           </div>
-        )}
 
-        <div className="profile-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
-            <h3>Mis Mascotas</h3>
-            <button
-              onClick={handleAddPet}
-              style={{
-                background: "#4caf50",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                padding: "4px 8px",
-                fontSize: "12px",
-                cursor: "pointer"
-              }}
-            >
-              + Agregar
-            </button>
-          </div>
-
-          {myPets.length > 0 ? (
-            <div>
+          {myPets.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
+              <p>No tienes mascotas registradas</p>
+              <button
+                onClick={handleAddPet}
+                style={{
+                  padding: "10px 20px",
+                  background: "#4caf50",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                  cursor: "pointer",
+                  marginTop: "10px"
+                }}
+              >
+                Agregar mi primera mascota
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+              gap: "12px"
+            }}>
               {myPets.map(pet => (
-                <div key={pet._id} className="result-item" style={{ marginBottom: 10 }}>
-                  <div className="result-avatar">
-                    {pet.images && pet.images.length > 0 ? (
-                      <img
-                        src={`http://localhost:5000${pet.images[0]}`}
-                        alt={pet.name}
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          borderRadius: "50%",
-                          objectFit: "cover"
-                        }}
-                      />
-                    ) : (
-                      pet.name.substring(0, 2).toUpperCase()
-                    )}
-                  </div>
-                  <div className="result-info">
-                    <h4>{pet.name}</h4>
-                    <p>{pet.breed} • {pet.type}</p>
-                    <p style={{ fontSize: "11px" }}>{pet.description}</p>
-                  </div>
-                  <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <span
-                      className="preference-tag"
-                      style={{
-                        background: pet.status === "available" ? "#e8f5e8" : "#f3e5f5",
-                        color: pet.status === "available" ? "#4caf50" : "#9c27b0",
-                        fontSize: "10px"
-                      }}
-                    >
-                      {pet.status === "available" ? "Disponible" : "En adopción"}
-                    </span>
-                    <div style={{ display: "flex", gap: "5px" }}>
+                <div
+                  key={pet._id}
+                  style={{
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    cursor: "pointer"
+                  }}
+                  onClick={() => navigate(`/pet/${pet._id}`)}
+                >
+                  <img
+                    src={pet.images && pet.images.length > 0
+                      ? `http://localhost:5000${pet.images[0]}`
+                      : "/default-pet.png"}
+                    alt={pet.name}
+                    style={{
+                      width: "100%",
+                      height: "120px",
+                      objectFit: "cover"
+                    }}
+                  />
+                  <div style={{ padding: "12px" }}>
+                    <h4 style={{ margin: "0 0 8px 0", fontSize: "16px" }}>{pet.name}</h4>
+                    <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#666" }}>
+                      {pet.breed}
+                    </p>
+                    <p style={{ margin: "0 0 8px 0", fontSize: "12px", color: "#999" }}>
+                      {pet.age?.value} {pet.age?.unit === "years" ? "años" : "meses"}
+                    </p>
+                    <div style={{ display: "flex", gap: "4px" }}>
                       <button
-                        onClick={() => handleEditPet(pet._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditPet(pet);
+                        }}
                         style={{
+                          flex: 1,
+                          padding: "6px",
                           background: "#2196f3",
                           color: "white",
                           border: "none",
-                          borderRadius: "2px",
-                          padding: "2px 4px",
-                          fontSize: "10px",
+                          borderRadius: "4px",
+                          fontSize: "12px",
                           cursor: "pointer"
                         }}
                       >
                         ✏️
                       </button>
                       <button
-                        onClick={() => handleDeletePet(pet._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/pet/${pet._id}`);
+                        }}
                         style={{
-                          background: "#f44336",
+                          flex: 1,
+                          padding: "6px",
+                          background: "#4caf50",
                           color: "white",
                           border: "none",
-                          borderRadius: "2px",
-                          padding: "2px 4px",
-                          fontSize: "10px",
+                          borderRadius: "4px",
+                          fontSize: "12px",
                           cursor: "pointer"
                         }}
                       >
-                        🗑️
+                        👁️
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <p style={{ color: "#666", fontSize: "14px", textAlign: "center" }}>
-              No tienes mascotas registradas
-            </p>
           )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="section">
+          <h3>Acciones Rápidas</h3>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              onClick={handleSearchAdopt}
+              style={{
+                flex: 1,
+                padding: "16px",
+                background: "#ff9800",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "16px",
+                cursor: "pointer"
+              }}
+            >
+              🐾 Buscar para Adoptar
+            </button>
+          </div>
         </div>
       </div>
     </div>

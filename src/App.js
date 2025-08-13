@@ -8,6 +8,7 @@ import Profile from "./components/Profile";
 import PetDetail from "./components/PetDetail";
 import SearchPets from "./components/SearchPets";
 import AddPet from "./components/AddPet";
+import EditPet from "./components/EditPet";
 import Applications from "./components/Applications";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/pet/:id" element={<PetDetail />} />
           <Route path="/search" element={<SearchPets />} />
           <Route path="/add-pet" element={<AddPet />} />
+          <Route path="/edit-pet/:id" element={<EditPet />} />
           <Route path="/applications" element={<Applications />} />
         </Routes>
       </div>

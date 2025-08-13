@@ -16,11 +16,19 @@ export default function PetDetail() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [error, setError] = useState("");
+  const [isOwner, setIsOwner] = useState(false);
+  const [userHasApplied, setUserHasApplied] = useState(false);
+  const [userApplication, setUserApplication] = useState(null);
 
   useEffect(() => {
-    loadPetDetails();
     loadCurrentUser();
-  }, [id]);
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadPetDetails();
+    }
+  }, [id, currentUser]);
 
   const loadCurrentUser = () => {
     const userData = localStorage.getItem("currentUser");
@@ -32,11 +40,34 @@ export default function PetDetail() {
   const loadPetDetails = async () => {
     try {
       setIsLoading(true);
+      setError("");
+
       const response = await apiService.pets.getById(id);
       const petData = response.data.pet;
+      const userHasApplied = response.data.userHasApplied || false;
+      const userApplication = response.data.userApplication || null;
 
-      setPet(petData);
-      setOwner(petData.owner);
+      // Ensure all required fields are present with defaults
+      const normalizedPetData = {
+        ...petData,
+        age: petData.age || { value: 0, unit: 'years' },
+        health: petData.health || { isVaccinated: false, isSpayed: false, isHealthy: true, vaccines: [] },
+        behavior: petData.behavior || { temperament: 'friendly', goodWith: { children: true, dogs: true, cats: true, otherPets: true }, specialNeeds: '' },
+        location: petData.location || { city: '', state: '', country: 'Ecuador' },
+        characteristics: petData.characteristics || [],
+        requirements: petData.requirements || [],
+        images: petData.images || []
+      };
+
+      setPet(normalizedPetData);
+      setOwner(normalizedPetData.owner);
+      setUserHasApplied(userHasApplied);
+      setUserApplication(userApplication);
+
+      // Check if current user is the owner
+      if (currentUser && normalizedPetData.owner) {
+        setIsOwner(currentUser._id === normalizedPetData.owner._id);
+      }
     } catch (error) {
       console.error("Error loading pet:", error);
       setError("Error al cargar los detalles de la mascota");
@@ -66,6 +97,7 @@ export default function PetDetail() {
       setApplicationSent(true);
       setShowApplicationForm(false);
       setApplicationMessage("");
+      setUserHasApplied(true);
 
       // Show success message
       setTimeout(() => {
@@ -73,7 +105,12 @@ export default function PetDetail() {
       }, 3000);
     } catch (error) {
       console.error("Error applying for adoption:", error);
-      setError(error.message || "Error al enviar la aplicación");
+      if (error.message.includes("Ya has aplicado")) {
+        setUserHasApplied(true);
+        setError("Ya has aplicado para esta mascota anteriormente");
+      } else {
+        setError(error.message || "Error al enviar la aplicación");
+      }
     } finally {
       setIsApplying(false);
     }
@@ -125,6 +162,11 @@ export default function PetDetail() {
     navigate("/feed");
   };
 
+  // Function to refresh pet data
+  const refreshPetData = () => {
+    loadPetDetails();
+  };
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -166,6 +208,7 @@ export default function PetDetail() {
           <div className="back-btn" onClick={handleBack}>‹</div>
           Cargando...
           <div className="header-icons">
+            <div className="icon" onClick={refreshPetData} title="Refrescar datos">🔄</div>
             <div className="icon" onClick={navigateToFeed}>🏠</div>
             <div className="icon" onClick={toggleUserMenu}>👤</div>
           </div>
@@ -198,6 +241,7 @@ export default function PetDetail() {
           <div className="back-btn" onClick={handleBack}>‹</div>
           Error
           <div className="header-icons">
+            <div className="icon" onClick={refreshPetData} title="Refrescar datos">🔄</div>
             <div className="icon" onClick={navigateToFeed}>🏠</div>
             <div className="icon" onClick={toggleUserMenu}>👤</div>
           </div>
@@ -220,6 +264,7 @@ export default function PetDetail() {
         <div className="back-btn" onClick={handleBack}>‹</div>
         Detalle de Mascota
         <div className="header-icons">
+          <div className="icon" onClick={refreshPetData} title="Refrescar datos">🔄</div>
           <div className="icon" onClick={handleShare}>📤</div>
           <div className="icon" onClick={navigateToFeed}>🏠</div>
           <div className="icon" onClick={toggleUserMenu}>👤</div>
@@ -334,18 +379,25 @@ export default function PetDetail() {
             </div>
 
             {/* Characteristics */}
-            {pet.behavior?.temperament && (
+            {(pet.behavior?.temperament || (pet.characteristics && pet.characteristics.length > 0)) && (
               <div className="section">
                 <h3>Características</h3>
                 <div className="preference-tags">
-                  <span className="preference-tag">
-                    {pet.behavior.temperament === 'calm' ? 'Tranquilo' :
-                      pet.behavior.temperament === 'energetic' ? 'Energético' :
-                        pet.behavior.temperament === 'shy' ? 'Tímido' :
-                          pet.behavior.temperament === 'friendly' ? 'Amigable' :
-                            pet.behavior.temperament === 'aggressive' ? 'Agresivo' :
-                              pet.behavior.temperament === 'playful' ? 'Juguetón' : pet.behavior.temperament}
-                  </span>
+                  {pet.behavior?.temperament && (
+                    <span className="preference-tag">
+                      {pet.behavior.temperament === 'calm' ? 'Tranquilo' :
+                        pet.behavior.temperament === 'energetic' ? 'Energético' :
+                          pet.behavior.temperament === 'shy' ? 'Tímido' :
+                            pet.behavior.temperament === 'friendly' ? 'Amigable' :
+                              pet.behavior.temperament === 'aggressive' ? 'Agresivo' :
+                                pet.behavior.temperament === 'playful' ? 'Juguetón' : pet.behavior.temperament}
+                    </span>
+                  )}
+                  {pet.characteristics && pet.characteristics.map((characteristic, index) => (
+                    <span key={index} className="preference-tag">
+                      {characteristic}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -368,6 +420,20 @@ export default function PetDetail() {
               <div className="section">
                 <h3>Necesidades Especiales</h3>
                 <p>{pet.behavior.specialNeeds}</p>
+              </div>
+            )}
+
+            {/* Requirements */}
+            {pet.requirements && pet.requirements.length > 0 && (
+              <div className="section">
+                <h3>Requisitos para Adopción</h3>
+                <div className="preference-tags">
+                  {pet.requirements.map((requirement, index) => (
+                    <span key={index} className="preference-tag" style={{ background: "#ff9800", color: "white" }}>
+                      {requirement}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -400,22 +466,27 @@ export default function PetDetail() {
               </div>
             )}
 
-            {/* Adoption Fee */}
-            {pet.adoptionFee > 0 && (
-              <div className="section">
-                <h3>Tarifa de Adopción</h3>
-                <p style={{ fontSize: "18px", fontWeight: "600", color: "#667eea" }}>
-                  ${pet.adoptionFee}
-                </p>
-              </div>
-            )}
+
 
             {/* Owner Information */}
             <div className="section">
               <h3>Propietario</h3>
               <div className="profile-header">
                 <div className="avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
-                  {owner.avatar || owner.name.substring(0, 2).toUpperCase()}
+                  {owner.avatar && owner.avatar.startsWith('/uploads/') ? (
+                    <img
+                      src={`http://localhost:5000${owner.avatar}`}
+                      alt={owner.name}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "50%",
+                        objectFit: "cover"
+                      }}
+                    />
+                  ) : (
+                    owner.name.substring(0, 2).toUpperCase()
+                  )}
                 </div>
                 <div className="profile-info">
                   <h3 style={{ fontSize: 14 }}>{owner.name}</h3>
@@ -423,23 +494,35 @@ export default function PetDetail() {
                 </div>
               </div>
 
-              {showContactInfo && (
-                <div style={{ marginTop: 15, padding: 15, background: "#f8f9fa", borderRadius: 8 }}>
-                  {owner.phone && <p style={{ marginBottom: 5 }}><strong>Teléfono:</strong> {owner.phone}</p>}
-                  {owner.email && <p style={{ marginBottom: 5 }}><strong>Email:</strong> {owner.email}</p>}
-                  {owner.location && (
-                    <p><strong>Ubicación:</strong> {owner.location.city}{owner.location.state && `, ${owner.location.state}`}</p>
+              {!isOwner && (
+                <>
+                  {showContactInfo && (
+                    <div style={{ marginTop: 15, padding: 15, background: "#f8f9fa", borderRadius: 8 }}>
+                      {owner.phone && <p style={{ marginBottom: 5 }}><strong>Teléfono:</strong> {owner.phone}</p>}
+                      {owner.email && <p style={{ marginBottom: 5 }}><strong>Email:</strong> {owner.email}</p>}
+                      {owner.location && (
+                        <p><strong>Ubicación:</strong> {owner.location.city}{owner.location.state && `, ${owner.location.state}`}</p>
+                      )}
+                    </div>
                   )}
-                </div>
+
+                  <button
+                    className="btn-secondary"
+                    onClick={handleContactOwner}
+                    style={{ marginTop: 10, width: "100%" }}
+                  >
+                    {showContactInfo ? "Ocultar Contacto" : "Ver Información de Contacto"}
+                  </button>
+                </>
               )}
 
-              <button
-                className="btn-secondary"
-                onClick={handleContactOwner}
-                style={{ marginTop: 10, width: "100%" }}
-              >
-                {showContactInfo ? "Ocultar Contacto" : "Ver Información de Contacto"}
-              </button>
+              {isOwner && (
+                <div style={{ marginTop: 15, padding: 15, background: "#e8f5e8", borderRadius: 8, textAlign: "center" }}>
+                  <p style={{ color: "#4caf50", fontSize: "14px", margin: 0 }}>
+                    Esta es tu mascota. Puedes editarla desde tu perfil.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Application Form */}
@@ -491,7 +574,7 @@ export default function PetDetail() {
             )}
 
             {/* Action Buttons */}
-            {pet.status === 'available' && (
+            {!isOwner && pet.status === 'available' && !userHasApplied && (
               <button
                 className="btn-primary"
                 onClick={() => setShowApplicationForm(true)}
@@ -501,10 +584,47 @@ export default function PetDetail() {
               </button>
             )}
 
-            {pet.status !== 'available' && (
+            {!isOwner && pet.status === 'available' && userHasApplied && (
+              <div style={{
+                marginTop: 10,
+                padding: 15,
+                background: "#e3f2fd",
+                borderRadius: 8,
+                textAlign: "center",
+                border: "1px solid #2196f3"
+              }}>
+                <p style={{ color: "#1976d2", fontSize: "14px", margin: 0, fontWeight: "600" }}>
+                  ✅ Usted ya ha aplicado para adoptar esta mascota
+                </p>
+                {userApplication && (
+                  <p style={{ color: "#666", fontSize: "12px", margin: "5px 0 0 0" }}>
+                    Estado: {userApplication.status === 'pending' ? 'Pendiente de revisión' :
+                      userApplication.status === 'approved' ? 'Aprobada' :
+                        userApplication.status === 'rejected' ? 'Rechazada' : 'Retirada'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!isOwner && pet.status !== 'available' && (
               <p style={{ textAlign: "center", color: "#f57c00", fontSize: 12, marginTop: 10 }}>
                 Esta mascota no está disponible para adopción
               </p>
+            )}
+
+            {isOwner && (
+              <div style={{ marginTop: 15, textAlign: "center" }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => navigate("/profile")}
+                  style={{ width: "100%", marginBottom: 10 }}
+                >
+                  Editar Mascota en Mi Perfil
+                </button>
+                <p style={{ color: "#666", fontSize: 12 }}>
+                  Ve a tu perfil para editar la información de esta mascota
+                </p>
+              </div>
             )}
           </div>
         </div>

@@ -9,9 +9,13 @@ export default function Feed() {
   const [likedPosts, setLikedPosts] = useState(new Set());
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [newPost, setNewPost] = useState({ content: "", tags: [] });
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [previewImages, setPreviewImages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
+  const [showPostMenu, setShowPostMenu] = useState(null);
   const [customTag, setCustomTag] = useState("");
   const [selectedTagFilter, setSelectedTagFilter] = useState("");
   const navigate = useNavigate();
@@ -124,13 +128,47 @@ export default function Feed() {
   ];
 
   useEffect(() => {
-    // Simulate loading posts from API
-    setTimeout(() => {
+    loadCurrentUser();
+    loadPosts();
+  }, []);
+
+  const loadCurrentUser = () => {
+    const userData = localStorage.getItem("currentUser");
+    if (userData) {
+      setCurrentUser(JSON.parse(userData));
+    }
+  };
+
+  const loadPosts = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiService.posts.getAll();
+      const apiPosts = response.data.posts.map(post => ({
+        id: post._id,
+        author: post.author.name,
+        avatar: post.author.avatar || post.author.name.substring(0, 2).toUpperCase(),
+        timeAgo: post.timeAgo || "hace un momento",
+        type: post.type || "Publicación",
+        content: post.content,
+        tags: post.tags || [],
+        images: post.images || [],
+        likes: post.likeCount || 0,
+        comments: post.commentCount || 0,
+        shares: post.shareCount || 0,
+        authorId: post.author._id
+      }));
+
+      setPosts(apiPosts);
+      setFilteredPosts(apiPosts);
+    } catch (error) {
+      console.error("Error loading posts:", error);
+      // Fallback to sample data if API fails
       setPosts(samplePosts);
       setFilteredPosts(samplePosts);
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
 
   useEffect(() => {
     // Filter posts based on search term and selected tag
@@ -193,30 +231,70 @@ export default function Feed() {
     }
   };
 
+  const handleDelete = async (postId) => {
+    if (!window.confirm("¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.")) {
+      return;
+    }
+
+    try {
+      await apiService.posts.delete(postId);
+
+      // Remove the post from the local state
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      setFilteredPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+
+      alert("Publicación eliminada exitosamente");
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      alert("Error al eliminar la publicación: " + (error.message || "Error desconocido"));
+    }
+  };
+
   const handleSearch = () => {
     // Search functionality is handled by useEffect
     console.log("Buscando:", searchTerm);
   };
 
-  const handleNewPost = () => {
-    if (newPost.content.trim()) {
-      const post = {
-        id: Date.now(),
-        author: "María González",
-        avatar: "MG",
-        timeAgo: "Ahora",
-        type: "Publicación",
+  const handleNewPost = async () => {
+    if (!newPost.content.trim()) {
+      alert("Por favor escribe algo para publicar");
+      return;
+    }
+
+    try {
+      const postData = {
         content: newPost.content,
-        tags: newPost.tags,
-        likes: 0,
-        comments: 0,
-        shares: 0,
-        authorId: "maria_gonzalez"
+        tags: newPost.tags.join(','),
+        type: 'general'
       };
 
-      setPosts(prev => [post, ...prev]);
+      const response = await apiService.posts.create(postData, selectedFiles);
+      const createdPost = response.data.post;
+
+      // Add the new post to the list
+      const postWithFormattedData = {
+        id: createdPost._id,
+        author: createdPost.author.name,
+        avatar: createdPost.author.avatar || createdPost.author.name.substring(0, 2).toUpperCase(),
+        timeAgo: "Ahora",
+        type: "Publicación",
+        content: createdPost.content,
+        tags: createdPost.tags,
+        images: createdPost.images,
+        likes: createdPost.likeCount || 0,
+        comments: createdPost.commentCount || 0,
+        shares: createdPost.shareCount || 0,
+        authorId: createdPost.author._id
+      };
+
+      setPosts(prev => [postWithFormattedData, ...prev]);
       setNewPost({ content: "", tags: [] });
+      setSelectedFiles([]);
+      setPreviewImages([]);
       setShowNewPostForm(false);
+    } catch (error) {
+      console.error("Error creating post:", error);
+      alert("Error al crear la publicación: " + (error.message || "Error desconocido"));
     }
   };
 
@@ -236,6 +314,34 @@ export default function Feed() {
 
   const removeTag = (tagToRemove) => {
     setNewPost(prev => ({ ...prev, tags: prev.tags.filter(tag => tag !== tagToRemove) }));
+  };
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file =>
+      file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024 // 5MB limit
+    );
+
+    if (validFiles.length + previewImages.length > 5) {
+      alert("Máximo 5 imágenes permitidas");
+      return;
+    }
+
+    setSelectedFiles(prev => [...prev, ...validFiles]);
+
+    // Create previews for new images
+    validFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewImages(prev => [...prev, e.target.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const selectTagFilter = (tag) => {
@@ -263,11 +369,22 @@ export default function Feed() {
     setShowUserMenu(!showUserMenu);
   };
 
+  const togglePostMenu = (postId) => {
+    setShowPostMenu(showPostMenu === postId ? null : postId);
+  };
+
+  const closePostMenu = () => {
+    setShowPostMenu(null);
+  };
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showUserMenu && !event.target.closest('.header-icons')) {
         setShowUserMenu(false);
+      }
+      if (showPostMenu && !event.target.closest('.post-menu-container')) {
+        setShowPostMenu(null);
       }
     };
 
@@ -275,7 +392,7 @@ export default function Feed() {
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [showUserMenu]);
+  }, [showUserMenu, showPostMenu]);
 
   // Group tags by category
   const groupedTags = availableTags.reduce((acc, tag) => {
@@ -458,9 +575,24 @@ export default function Feed() {
         {showNewPostForm && (
           <div className="post-card" style={{ marginBottom: 20 }}>
             <div className="post-header">
-              <div className="post-avatar">MG</div>
+              <div className="post-avatar">
+                {currentUser?.avatar && currentUser.avatar.startsWith('/uploads/') ? (
+                  <img
+                    src={`http://localhost:5000${currentUser.avatar}`}
+                    alt={currentUser.name}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                      objectFit: "cover"
+                    }}
+                  />
+                ) : (
+                  currentUser?.name?.substring(0, 2).toUpperCase() || "MG"
+                )}
+              </div>
               <div className="post-info">
-                <h4>María González</h4>
+                <h4>{currentUser?.name || "María González"}</h4>
                 <p>Nueva publicación</p>
               </div>
             </div>
@@ -481,6 +613,87 @@ export default function Feed() {
                   transition: "all 0.3s ease"
                 }}
               />
+
+              {/* Image Upload Section */}
+              <div style={{ marginTop: "16px" }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "8px"
+                }}>
+                  <span style={{ fontSize: "14px", fontWeight: "600", color: "#333" }}>
+                    Imágenes ({previewImages.length}/5):
+                  </span>
+                  {previewImages.length < 5 && (
+                    <label
+                      style={{
+                        padding: "6px 12px",
+                        background: "#667eea",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      📷 Agregar Imágenes
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Image Previews */}
+                {previewImages.length > 0 && (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+                    gap: "8px",
+                    marginBottom: "12px"
+                  }}>
+                    {previewImages.map((image, index) => (
+                      <div key={index} style={{ position: "relative" }}>
+                        <img
+                          src={image}
+                          alt={`Preview ${index + 1}`}
+                          style={{
+                            width: "100%",
+                            height: "80px",
+                            objectFit: "cover",
+                            borderRadius: "8px",
+                            border: "2px solid #e0e0e0"
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          style={{
+                            position: "absolute",
+                            top: "-5px",
+                            right: "-5px",
+                            background: "#f44336",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "50%",
+                            width: "20px",
+                            height: "20px",
+                            fontSize: "12px",
+                            cursor: "pointer"
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Selected Tags */}
               <div className="post-tags" style={{ marginTop: "12px" }}>
@@ -636,7 +849,12 @@ export default function Feed() {
               <button className="btn-primary" onClick={handleNewPost} style={{ margin: 0, width: "auto", padding: "12px 24px" }}>
                 Publicar
               </button>
-              <button className="btn-secondary" onClick={() => setShowNewPostForm(false)} style={{ margin: 0, width: "auto", padding: "12px 24px" }}>
+              <button className="btn-secondary" onClick={() => {
+                setShowNewPostForm(false);
+                setNewPost({ content: "", tags: [] });
+                setSelectedFiles([]);
+                setPreviewImages([]);
+              }} style={{ margin: 0, width: "auto", padding: "12px 24px" }}>
                 Cancelar
               </button>
             </div>
@@ -646,14 +864,128 @@ export default function Feed() {
         {filteredPosts.map(post => (
           <div key={post.id} className="post-card">
             <div className="post-header">
-              <div className="post-avatar">{post.avatar}</div>
+              <div className="post-avatar">
+                {post.avatar && post.avatar.startsWith('/uploads/') ? (
+                  <img
+                    src={`http://localhost:5000${post.avatar}`}
+                    alt={post.author}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                      objectFit: "cover"
+                    }}
+                  />
+                ) : (
+                  post.avatar
+                )}
+              </div>
               <div className="post-info">
                 <h4>{post.author}</h4>
                 <p>Hace {post.timeAgo} • {post.type}</p>
               </div>
+              <div className="post-menu-container" style={{ position: "relative" }}>
+                <button
+                  onClick={() => togglePostMenu(post.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "18px",
+                    cursor: "pointer",
+                    padding: "4px",
+                    borderRadius: "4px",
+                    color: "#666"
+                  }}
+                >
+                  ⋯
+                </button>
+                {showPostMenu === post.id && (
+                  <div style={{
+                    position: "absolute",
+                    top: "100%",
+                    right: "0",
+                    background: "white",
+                    border: "1px solid #e0e0e0",
+                    borderRadius: "8px",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                    zIndex: 1000,
+                    minWidth: "120px"
+                  }}>
+                    {currentUser && post.authorId === currentUser._id && (
+                      <button
+                        onClick={() => {
+                          closePostMenu();
+                          handleDelete(post.id);
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          background: "none",
+                          border: "none",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          color: "#e74c3c",
+                          fontSize: "14px",
+                          borderBottom: "1px solid #f0f0f0"
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = "#f8f9fa"}
+                        onMouseLeave={(e) => e.target.style.background = "none"}
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        closePostMenu();
+                        handleShare(post.id);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        background: "none",
+                        border: "none",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        color: "#666",
+                        fontSize: "14px"
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = "#f8f9fa"}
+                      onMouseLeave={(e) => e.target.style.background = "none"}
+                    >
+                      🔄 Compartir
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="post-content">
               <p>{post.content}</p>
+
+              {/* Post Images */}
+              {post.images && post.images.length > 0 && (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: post.images.length === 1 ? "1fr" : "repeat(2, 1fr)",
+                  gap: "8px",
+                  marginTop: "12px"
+                }}>
+                  {post.images.map((image, index) => (
+                    <img
+                      key={index}
+                      src={`http://localhost:5000${image}`}
+                      alt={`Post image ${index + 1}`}
+                      style={{
+                        width: "100%",
+                        height: post.images.length === 1 ? "200px" : "150px",
+                        objectFit: "cover",
+                        borderRadius: "8px",
+                        border: "1px solid #e0e0e0"
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
               <div className="post-tags">
                 {post.tags.map(tag => (
                   <span

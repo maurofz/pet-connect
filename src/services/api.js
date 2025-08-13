@@ -145,19 +145,24 @@ class ApiService {
       });
     },
 
-    update: (id, petData, files = []) => {
+    update: (id, petData, files = [], imagesToDelete = []) => {
       const formData = new FormData();
 
       // Add pet data
       Object.keys(petData).forEach(key => {
-        if (key === 'health' || key === 'behavior' || key === 'location') {
+        if (key === 'health' || key === 'behavior' || key === 'location' || key === 'age' || key === 'characteristics' || key === 'requirements') {
           formData.append(key, JSON.stringify(petData[key]));
         } else {
           formData.append(key, petData[key]);
         }
       });
 
-      // Add images
+      // Add images to delete
+      if (imagesToDelete.length > 0) {
+        formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
+      }
+
+      // Add new images
       files.forEach(file => {
         formData.append('images', file);
       });

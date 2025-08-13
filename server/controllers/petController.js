@@ -1,5 +1,24 @@
 import Pet from '../models/Pet.js';
 import User from '../models/User.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Helper function to delete image files
+const deleteImageFile = (imagePath) => {
+  try {
+    const fullPath = path.join(__dirname, '..', '..', imagePath);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      console.log(`Deleted image file: ${fullPath}`);
+    }
+  } catch (error) {
+    console.error(`Error deleting image file ${imagePath}:`, error);
+  }
+};
 
 // @desc    Get all pets
 // @route   GET /api/pets
@@ -59,9 +78,21 @@ const getPetById = async (req, res) => {
       await pet.addView();
     }
 
+    // Check if current user has already applied
+    let userHasApplied = false;
+    let userApplication = null;
+    if (req.user) {
+      userApplication = pet.applications.find(app => app.user._id.toString() === req.user.id);
+      userHasApplied = !!userApplication;
+    }
+
     res.json({
       success: true,
-      data: { pet }
+      data: {
+        pet,
+        userHasApplied,
+        userApplication
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -148,10 +179,91 @@ const updatePet = async (req, res) => {
       });
     }
 
-    // Handle new images
+    // Parse JSON fields from FormData
+    if (req.body.age && typeof req.body.age === 'string') {
+      try {
+        req.body.age = JSON.parse(req.body.age);
+      } catch (error) {
+        console.error('Error parsing age:', error);
+      }
+    }
+
+    if (req.body.health && typeof req.body.health === 'string') {
+      try {
+        req.body.health = JSON.parse(req.body.health);
+      } catch (error) {
+        console.error('Error parsing health:', error);
+      }
+    }
+
+    if (req.body.behavior && typeof req.body.behavior === 'string') {
+      try {
+        req.body.behavior = JSON.parse(req.body.behavior);
+      } catch (error) {
+        console.error('Error parsing behavior:', error);
+      }
+    }
+
+    if (req.body.location && typeof req.body.location === 'string') {
+      try {
+        req.body.location = JSON.parse(req.body.location);
+      } catch (error) {
+        console.error('Error parsing location:', error);
+      }
+    }
+
+    if (req.body.characteristics && typeof req.body.characteristics === 'string') {
+      try {
+        req.body.characteristics = JSON.parse(req.body.characteristics);
+      } catch (error) {
+        console.error('Error parsing characteristics:', error);
+      }
+    }
+
+    if (req.body.requirements && typeof req.body.requirements === 'string') {
+      try {
+        req.body.requirements = JSON.parse(req.body.requirements);
+      } catch (error) {
+        console.error('Error parsing requirements:', error);
+      }
+    }
+
+    // Parse images to delete
+    let imagesToDelete = [];
+    if (req.body.imagesToDelete && typeof req.body.imagesToDelete === 'string') {
+      try {
+        imagesToDelete = JSON.parse(req.body.imagesToDelete);
+      } catch (error) {
+        console.error('Error parsing imagesToDelete:', error);
+      }
+    }
+
+    // Handle images (replace completely if new images are uploaded)
     if (req.files && req.files.length > 0) {
       const newImages = req.files.map(file => `/uploads/${file.filename}`);
-      req.body.images = [...(pet.images || []), ...newImages];
+
+      // Start with existing images, remove deleted ones, then add new ones
+      let finalImages = pet.images || [];
+
+      // Remove images that were marked for deletion
+      if (imagesToDelete.length > 0) {
+        finalImages = finalImages.filter(img => !imagesToDelete.includes(img));
+        // Delete the image files from the server
+        imagesToDelete.forEach(imgPath => deleteImageFile(imgPath));
+      }
+
+      // Add new images
+      finalImages = [...finalImages, ...newImages];
+
+      req.body.images = finalImages;
+    } else if (imagesToDelete.length > 0) {
+      // If no new images but some were deleted, update the images array
+      let finalImages = pet.images || [];
+      finalImages = finalImages.filter(img => !imagesToDelete.includes(img));
+      req.body.images = finalImages;
+
+      // Delete the image files from the server
+      imagesToDelete.forEach(imgPath => deleteImageFile(imgPath));
     }
 
     const updatedPet = await Pet.findByIdAndUpdate(
