@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const config = require('../config/config');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import config from '../config/config.js';
 
 // Middleware to protect routes
 const protect = async (req, res, next) => {
@@ -31,9 +31,7 @@ const protect = async (req, res, next) => {
       console.error('Token verification error:', error);
       return res.status(401).json({ message: 'Token no válido' });
     }
-  }
-
-  if (!token) {
+  } else {
     return res.status(401).json({ message: 'No autorizado, token requerido' });
   }
 };
@@ -80,7 +78,7 @@ const generateToken = (id) => {
   });
 };
 
-module.exports = {
+export {
   protect,
   authorize,
   optionalAuth,

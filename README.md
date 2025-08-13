@@ -1,194 +1,215 @@
-# PetConnect - Red Social de Adopción de Mascotas 🐾
+# PetConnect - Red Social de Adopción de Mascotas
 
-Una aplicación web moderna y responsive para conectar mascotas con familias amorosas.
+PetConnect es una aplicación web completa que conecta mascotas con familias que buscan adoptar. La aplicación incluye un backend con Node.js/Express y un frontend con React.
 
-## ✨ Características Principales
+## 🚀 Características
 
-### 🎨 **Diseño Responsive**
+- **Autenticación completa**: Registro e inicio de sesión de usuarios
+- **Gestión de mascotas**: Crear, editar, buscar y gestionar mascotas para adopción
+- **Sistema de posts**: Compartir historias, consejos y eventos relacionados con mascotas
+- **Feed personalizado**: Contenido adaptado a las preferencias del usuario
+- **Sistema de favoritos**: Guardar mascotas favoritas
+- **Aplicaciones de adopción**: Sistema para aplicar a la adopción de mascotas
+- **Subida de imágenes**: Soporte para múltiples imágenes por mascota y post
 
-- **Mobile First**: Optimizado para dispositivos móviles
-- **Tablet**: Adaptado para pantallas medianas (768px+)
-- **Desktop**: Experiencia completa en pantallas grandes (1024px+)
-- **Landscape Mode**: Soporte para orientación horizontal
-- **Dark Mode**: Soporte automático para modo oscuro del sistema
+## 🛠️ Tecnologías Utilizadas
 
-### 🔧 **Funcionalidades Implementadas**
+### Backend
 
-#### **Feed Social** 📱
+- **Node.js** con **ES Modules**
+- **Express.js** - Framework web
+- **MongoDB** con **Mongoose** - Base de datos
+- **JWT** - Autenticación
+- **bcryptjs** - Encriptación de contraseñas
+- **multer** - Manejo de archivos
+- **cors** - Cross-origin resource sharing
 
-- ✅ Publicaciones dinámicas con likes, comentarios y compartir
-- ✅ Búsqueda en tiempo real por contenido, tags y autores
-- ✅ Creación de nuevas publicaciones con tags
-- ✅ Estados de carga y mensajes informativos
-- ✅ Animaciones suaves y transiciones
+### Frontend
 
-#### **Sistema de Autenticación** 🔐
+- **React** - Biblioteca de interfaz de usuario
+- **React Router** - Navegación
+- **CSS3** - Estilos personalizados
+- **Fetch API** - Comunicación con el backend
 
-- ✅ Login con validación de formularios
-- ✅ Múltiples cuentas de demostración
-- ✅ Estados de carga y manejo de errores
-- ✅ Persistencia de sesión con localStorage
-- ✅ Toggle de visibilidad de contraseña
+## 📋 Requisitos Previos
 
-#### **Búsqueda de Mascotas** 🔍
+- **Node.js** (versión 14 o superior)
+- **MongoDB** (instalado y ejecutándose localmente)
+- **npm** o **yarn**
 
-- ✅ Filtros avanzados (tipo, ubicación, edad, tamaño, género)
-- ✅ Búsqueda por texto en tiempo real
-- ✅ Navegación por pestañas (Todos, Perros, Gatos)
-- ✅ Resultados con información detallada
-- ✅ Estados de disponibilidad
+## 🔧 Instalación y Configuración
 
-#### **Perfil de Usuario** 👤
+### 1. Clonar el repositorio
 
-- ✅ Información editable del perfil
-- ✅ Estadísticas dinámicas
-- ✅ Gestión de preferencias de mascotas
-- ✅ Sistema de mensajes con indicadores de no leídos
-- ✅ Gestión de mascotas propias
-- ✅ Funcionalidad de logout
-
-#### **Detalle de Mascota** 🐕
-
-- ✅ Información completa con características
-- ✅ Estado de vacunas con indicadores visuales
-- ✅ Información del propietario
-- ✅ Solicitud de adopción
-- ✅ Compartir en redes sociales
-- ✅ Contacto con el propietario
-
-## 🎨 **Paleta de Colores**
-
-- **Primario**: `#667eea` (Azul principal)
-- **Secundario**: `#764ba2` (Púrpura)
-- **Éxito**: `#4caf50` (Verde)
-- **Advertencia**: `#f39c12` (Naranja)
-- **Error**: `#f44336` (Rojo)
-- **Info**: `#2196f3` (Azul claro)
-
-## 📱 **Responsive Breakpoints**
-
-```css
-/* Mobile First */
-.phone {
-  width: 100%;
-  max-width: 400px;
-  height: 100vh;
-}
-
-/* Tablet (768px+) */
-@media (min-width: 768px) {
-  .phone {
-    width: 450px;
-    height: 750px;
-  }
-}
-
-/* Desktop (1024px+) */
-@media (min-width: 1024px) {
-  .phone {
-    width: 500px;
-    height: 800px;
-  }
-}
-
-/* Large Desktop (1440px+) */
-@media (min-width: 1440px) {
-  .phone {
-    width: 550px;
-    height: 850px;
-  }
-}
+```bash
+git clone <url-del-repositorio>
+cd pet-connect
 ```
 
-## 🚀 **Credenciales de Demo**
+### 2. Configurar el Backend
+
+```bash
+# Navegar al directorio del servidor
+cd server
+
+# Instalar dependencias
+npm install
+
+# Crear archivo .env (opcional, usa valores por defecto)
+# NODE_ENV=development
+# PORT=5000
+# MONGODB_URI=mongodb://localhost:27017/pet
+# JWT_SECRET=pet_super_secret_key_2024
+# JWT_EXPIRE=7d
+
+# Ejecutar el servidor
+npm start
+
+# O en modo desarrollo
+npm run dev
+```
+
+### 3. Configurar el Frontend
+
+```bash
+# En una nueva terminal, desde el directorio raíz
+# Instalar dependencias del frontend
+npm install
+
+# Ejecutar la aplicación React
+npm start
+```
+
+### 4. Poblar la base de datos (opcional)
+
+```bash
+# Desde el directorio server
+npm run seed
+```
+
+## 🌐 URLs de Acceso
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000/api
+- **Health Check**: http://localhost:5000/api/health
+
+## 📱 Funcionalidades Principales
+
+### Autenticación
+
+- **Registro**: Crear nueva cuenta con validaciones
+- **Login**: Iniciar sesión con email y contraseña
+- **Credenciales Demo**: Botón para usar credenciales de prueba
+
+### Gestión de Mascotas
+
+- Ver todas las mascotas disponibles
+- Filtrar por tipo, raza, edad, ubicación
+- Ver detalles completos de cada mascota
+- Aplicar para adopción
+- Marcar como favoritas
+
+### Feed Social
+
+- Ver posts de la comunidad
+- Crear nuevos posts con imágenes
+- Comentar y dar like
+- Feed personalizado según preferencias
+
+### Perfil de Usuario
+
+- Ver y editar información personal
+- Cambiar contraseña
+- Subir avatar
+- Ver mascotas propias y favoritas
+
+## 🔐 Seguridad
+
+- Contraseñas encriptadas con bcrypt
+- Autenticación JWT
+- Validación de datos en frontend y backend
+- Middleware de autorización por roles
+- Manejo seguro de archivos
+
+## 📁 Estructura del Proyecto
 
 ```
-maria@petconnect.com / 123456
-carlos@petconnect.com / 123456
-dr.vet@petconnect.com / 123456
+pet-connect/
+├── server/                 # Backend
+│   ├── config/            # Configuración
+│   ├── controllers/       # Controladores de la API
+│   ├── middleware/        # Middleware personalizado
+│   ├── models/           # Modelos de MongoDB
+│   ├── routes/           # Rutas de la API
+│   ├── uploads/          # Archivos subidos
+│   ├── server.js         # Servidor principal
+│   └── seedData.js       # Datos de prueba
+├── src/                  # Frontend React
+│   ├── components/       # Componentes React
+│   ├── services/         # Servicios de API
+│   └── App.js           # Componente principal
+└── README.md
 ```
 
-## 🛠️ **Tecnologías Utilizadas**
+## 🧪 Pruebas
 
-- **React 19.1.0** - Framework principal
-- **React Router 6.23.1** - Navegación
-- **CSS3** - Estilos y animaciones
-- **LocalStorage** - Persistencia de datos
-- **Web Share API** - Compartir contenido
+### Probar la API
 
-## 🎯 **Mejoras Implementadas**
+```bash
+# Health check
+curl http://localhost:5000/api/health
 
-### **Diseño y UX**
+# Registrar usuario
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com","password":"123456"}'
 
-- ✅ Gradientes modernos y sombras suaves
-- ✅ Animaciones CSS para transiciones
-- ✅ Estados hover y focus mejorados
-- ✅ Iconografía consistente
-- ✅ Tipografía optimizada
+# Login
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"123456"}'
+```
 
-### **Funcionalidad**
+## 🚀 Despliegue
 
-- ✅ Estados de carga con spinners
-- ✅ Manejo de errores con mensajes informativos
-- ✅ Validación de formularios en tiempo real
-- ✅ Navegación intuitiva con botones de regreso
-- ✅ Búsqueda y filtrado avanzado
+### Backend
 
-### **Responsive**
+El servidor está configurado para ejecutarse en el puerto 5000 por defecto. Para producción:
 
-- ✅ Diseño adaptativo para todos los dispositivos
-- ✅ Optimización para diferentes orientaciones
-- ✅ Soporte para pantallas de alta densidad
-- ✅ Modo oscuro automático
-- ✅ Estilos de impresión
+1. Configurar variables de entorno
+2. Usar un proceso manager como PM2
+3. Configurar MongoDB en la nube
+4. Configurar CORS para el dominio de producción
 
-## 📦 **Instalación y Uso**
+### Frontend
 
-1. **Clonar el repositorio**
+La aplicación React está configurada para conectarse al backend en `http://localhost:5000/api`. Para producción:
 
-   ```bash
-   git clone <repository-url>
-   cd pet-connect
-   ```
+1. Cambiar la URL de la API en `src/services/api.js`
+2. Construir la aplicación: `npm run build`
+3. Servir los archivos estáticos
 
-2. **Instalar dependencias**
+## 🤝 Contribuir
 
-   ```bash
-   npm install
-   ```
+1. Fork el proyecto
+2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abrir un Pull Request
 
-3. **Ejecutar en desarrollo**
-
-   ```bash
-   npm start
-   ```
-
-4. **Abrir en el navegador**
-   ```
-   http://localhost:3000
-   ```
-
-## 🎨 **Componentes Principales**
-
-- **Login**: Autenticación de usuarios
-- **Feed**: Feed social con publicaciones
-- **SearchPets**: Búsqueda y filtrado de mascotas
-- **PetDetail**: Detalle completo de mascota
-- **Profile**: Perfil de usuario y gestión
-
-## 🔮 **Próximas Funcionalidades**
-
-- [ ] Chat en tiempo real entre usuarios
-- [ ] Notificaciones push
-- [ ] Subida de imágenes de mascotas
-- [ ] Geolocalización para búsquedas cercanas
-- [ ] Sistema de calificaciones y reseñas
-- [ ] Integración con redes sociales
-
-## 📄 **Licencia**
+## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
+## 📞 Soporte
+
+Si tienes problemas o preguntas:
+
+1. Revisa la documentación
+2. Verifica que MongoDB esté ejecutándose
+3. Revisa los logs del servidor
+4. Abre un issue en el repositorio
+
 ---
 
-**Desarrollado con ❤️ para conectar mascotas con familias amorosas**
+**¡Gracias por usar PetConnect! 🐾**

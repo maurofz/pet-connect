@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const petSchema = new mongoose.Schema({
   name: {
@@ -261,4 +261,4 @@ petSchema.statics.findFeatured = function () {
   return this.find({ isFeatured: true, status: 'available' }).populate('owner', 'name avatar');
 };
 
-module.exports = mongoose.model('Pet', petSchema); 
+export default mongoose.model('Pet', petSchema); 

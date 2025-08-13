@@ -1,5 +1,5 @@
-const User = require('../models/User');
-const { generateToken } = require('../middleware/auth');
+import User from '../models/User.js';
+import { generateToken } from '../middleware/auth.js';
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -274,7 +274,7 @@ const logout = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   register,
   login,
   getMe,

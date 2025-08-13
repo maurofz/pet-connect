@@ -1,5 +1,5 @@
-const Pet = require('../models/Pet');
-const User = require('../models/User');
+import Pet from '../models/Pet.js';
+import User from '../models/User.js';
 
 // @desc    Get all pets
 // @route   GET /api/pets
@@ -461,7 +461,152 @@ const getFavorites = async (req, res) => {
   }
 };
 
-module.exports = {
+// @desc    Get applications for a pet
+// @route   GET /api/pets/:id/applications
+// @access  Private
+const getPetApplications = async (req, res) => {
+  try {
+    const pet = await Pet.findById(req.params.id)
+      .populate('applications.user', 'name avatar email phone location')
+      .populate('owner', 'name avatar');
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mascota no encontrada'
+      });
+    }
+
+    // Check if user owns the pet
+    if (pet.owner._id.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para ver las aplicaciones de esta mascota'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        pet,
+        applications: pet.applications
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error en el servidor'
+    });
+  }
+};
+
+// @desc    Update application status
+// @route   PUT /api/pets/:id/applications/:applicationId
+// @access  Private
+const updateApplicationStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!['pending', 'approved', 'rejected', 'withdrawn'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estado de aplicación inválido'
+      });
+    }
+
+    const pet = await Pet.findById(req.params.id);
+
+    if (!pet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mascota no encontrada'
+      });
+    }
+
+    // Check if user owns the pet
+    if (pet.owner.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para actualizar las aplicaciones de esta mascota'
+      });
+    }
+
+    const application = pet.applications.id(req.params.applicationId);
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aplicación no encontrada'
+      });
+    }
+
+    application.status = status;
+    application.reviewedBy = req.user.id;
+    application.reviewedAt = new Date();
+
+    // If approved, update pet status to pending
+    if (status === 'approved') {
+      pet.status = 'pending';
+    }
+
+    await pet.save();
+
+    res.json({
+      success: true,
+      message: 'Estado de aplicación actualizado exitosamente',
+      data: { application }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error en el servidor'
+    });
+  }
+};
+
+// @desc    Get user's applications
+// @route   GET /api/pets/applications/my-applications
+// @access  Private
+const getMyApplications = async (req, res) => {
+  try {
+    const pets = await Pet.find({
+      'applications.user': req.user.id
+    })
+      .populate('owner', 'name avatar')
+      .populate('applications.user', 'name avatar')
+      .sort({ 'applications.submittedAt': -1 });
+
+    // Extract applications for the current user
+    const myApplications = pets.map(pet => {
+      const application = pet.applications.find(app =>
+        app.user._id.toString() === req.user.id
+      );
+      return {
+        pet: {
+          _id: pet._id,
+          name: pet.name,
+          breed: pet.breed,
+          images: pet.images,
+          status: pet.status,
+          owner: pet.owner
+        },
+        application
+      };
+    });
+
+    res.json({
+      success: true,
+      data: { applications: myApplications }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error en el servidor'
+    });
+  }
+};
+
+export {
   getPets,
   getPetById,
   createPet,
@@ -472,5 +617,8 @@ module.exports = {
   toggleFavorite,
   applyForAdoption,
   getMyPets,
-  getFavorites
+  getFavorites,
+  getPetApplications,
+  updateApplicationStatus,
+  getMyApplications
 }; 

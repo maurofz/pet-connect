@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const {
+import {
   getPets,
   getPetById,
   createPet,
@@ -11,10 +11,13 @@ const {
   toggleFavorite,
   applyForAdoption,
   getMyPets,
-  getFavorites
-} = require('../controllers/petController');
-const { protect, optionalAuth } = require('../middleware/auth');
-const { uploadMultipleMiddleware } = require('../middleware/upload');
+  getFavorites,
+  getPetApplications,
+  updateApplicationStatus,
+  getMyApplications
+} from '../controllers/petController.js';
+import { protect, optionalAuth } from '../middleware/auth.js';
+import { uploadMultipleMiddleware } from '../middleware/upload.js';
 
 // Public routes
 router.get('/', getPets);
@@ -32,5 +35,8 @@ router.post('/:id/favorite', toggleFavorite);
 router.post('/:id/apply', applyForAdoption);
 router.get('/my-pets/list', getMyPets);
 router.get('/favorites/list', getFavorites);
+router.get('/:id/applications', getPetApplications);
+router.put('/:id/applications/:applicationId', updateApplicationStatus);
+router.get('/applications/my-applications', getMyApplications);
 
-module.exports = router; 
+export default router; 

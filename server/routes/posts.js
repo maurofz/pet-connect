@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const {
+import {
   getPosts,
   getPostById,
   createPost,
@@ -13,9 +13,9 @@ const {
   getUserPosts,
   getTrendingPosts,
   searchPosts
-} = require('../controllers/postController');
-const { protect, optionalAuth } = require('../middleware/auth');
-const { uploadMultipleMiddleware } = require('../middleware/upload');
+} from '../controllers/postController.js';
+import { protect, optionalAuth } from '../middleware/auth.js';
+import { uploadMultipleMiddleware } from '../middleware/upload.js';
 
 // Public routes
 router.get('/', getPosts);
@@ -35,4 +35,4 @@ router.post('/:id/share', sharePost);
 router.post('/:id/comments', addComment);
 router.post('/:id/comments/:commentId/replies', addReply);
 
-module.exports = router; 
+export default router; 

@@ -193,7 +193,16 @@ class ApiService {
 
     getMyPets: () => this.request('/pets/my-pets/list'),
 
-    getFavorites: () => this.request('/pets/favorites/list')
+    getFavorites: () => this.request('/pets/favorites/list'),
+
+    getPetApplications: (id) => this.request(`/pets/${id}/applications`),
+
+    updateApplicationStatus: (petId, applicationId, status) => this.request(`/pets/${petId}/applications/${applicationId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    }),
+
+    getMyApplications: () => this.request('/pets/applications/my-applications')
   };
 
   // Posts endpoints

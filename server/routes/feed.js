@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const Post = require('../models/Post');
-const Pet = require('../models/Pet');
-const User = require('../models/User'); // Added missing import for User
+import Post from '../models/Post.js';
+import Pet from '../models/Pet.js';
+import User from '../models/User.js';
+import { protect } from '../middleware/auth.js';
 
 // @desc    Get combined feed (posts + featured pets)
 // @route   GET /api/feed
@@ -153,7 +154,7 @@ const getFeedStats = async (req, res) => {
 };
 
 router.get('/', getFeed);
-router.get('/personalized', require('../middleware/auth').protect, getPersonalizedFeed);
+router.get('/personalized', protect, getPersonalizedFeed);
 router.get('/stats', getFeedStats);
 
-module.exports = router; 
+export default router; 

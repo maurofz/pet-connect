@@ -85,35 +85,32 @@ export default function Login() {
 
     setIsLoading(true);
 
-    // Simular llamada a API
-    setTimeout(() => {
-      const user = users.find(u => u.email === email);
+    try {
+      // Llamada real a la API
+      const response = await apiService.auth.login({ email, password });
 
-      if (!user) {
-        setEmailError("El email no está registrado");
-        setPasswordError("");
-        setIsLoading(false);
-        return;
-      }
-
-      if (user.password !== password) {
-        setPasswordError("La contraseña es incorrecta");
-        setEmailError("");
-        setPassword(""); // Limpiar campo por seguridad
-        // setPasswordTouched(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // Si todo está bien, loguear
+      // Guardar token y datos del usuario
+      localStorage.setItem("token", response.data.token);
       localStorage.setItem("currentUser", JSON.stringify({
-        email: user.email,
-        name: user.name,
+        ...response.data.user,
         isLoggedIn: true
       }));
 
       // Navegar al feed
       navigate("/feed");
+    } catch (error) {
+      console.error("Login error:", error);
+
+      // Manejar errores específicos
+      if (error.message.includes("Credenciales inválidas")) {
+        setPasswordError("Email o contraseña incorrectos");
+        setPassword(""); // Limpiar campo por seguridad
+      } else if (error.message.includes("Usuario inactivo")) {
+        setGeneralError("Tu cuenta está inactiva. Contacta al administrador.");
+      } else {
+        setGeneralError("Error al iniciar sesión. Intenta nuevamente.");
+      }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -133,7 +130,7 @@ export default function Login() {
   };
 
   const handleRegister = () => {
-    alert("Funcionalidad de registro en desarrollo. Usa las credenciales de demo.");
+    navigate("/register");
   };
 
   const getFieldClassName = (fieldError, isTouched) => {
@@ -231,8 +228,6 @@ export default function Login() {
           >
             Usar Credenciales Demo
           </button>
-
-
 
           <div style={{ marginTop: 20 }}>
             <p style={{ color: "#666", fontSize: 12 }}>¿No tienes cuenta?</p>

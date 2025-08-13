@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const postSchema = new mongoose.Schema({
   author: {
@@ -262,4 +262,4 @@ postSchema.statics.findByTags = function (tags) {
   }).populate('author', 'name avatar').populate('pet', 'name images');
 };
 
-module.exports = mongoose.model('Post', postSchema); 
+export default mongoose.model('Post', postSchema); 

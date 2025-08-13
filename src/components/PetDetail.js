@@ -1,115 +1,49 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import apiService from "../services/api";
 
 export default function PetDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [pet, setPet] = useState(null);
   const [owner, setOwner] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState("");
   const [isApplying, setIsApplying] = useState(false);
   const [applicationSent, setApplicationSent] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-
-  // Sample pet data
-  const petsData = {
-    "1": {
-      id: "1",
-      name: "Max",
-      breed: "Golden Retriever",
-      gender: "Macho",
-      age: 3,
-      weight: "25 kg",
-      size: "Grande",
-      vaccines: "Al día",
-      location: "Quito, Pichincha",
-      description: "Max es un perro muy enérgico de 3 años que necesita mucho ejercicio. Le encanta jugar y buscar pelotas. Es muy sociable con otros perros y niños. Necesita una familia activa que pueda darle la atención y ejercicio que requiere.",
-      vaccinesApplied: [
-        { name: "Rabia", status: "completed" },
-        { name: "Parvovirus", status: "completed" },
-        { name: "Distemper", status: "completed" },
-        { name: "Hepatitis", status: "completed" },
-        { name: "Leptospirosis", status: "pending" }
-      ],
-      ownerId: "maria_gonzalez",
-      status: "available",
-      photos: ["MAX"],
-      characteristics: ["Energético", "Sociable", "Juguetón", "Obediente"],
-      requirements: ["Familia activa", "Espacio al aire libre", "Tiempo para ejercicio"]
-    },
-    "2": {
-      id: "2",
-      name: "Luna",
-      breed: "Labrador Mix",
-      gender: "Hembra",
-      age: 2,
-      weight: "20 kg",
-      size: "Mediano",
-      vaccines: "Al día",
-      location: "Guayaquil, Guayas",
-      description: "Luna es una perrita muy cariñosa y tranquila. Se adapta bien a diferentes ambientes y es perfecta para familias con niños pequeños. Está esterilizada y tiene todas sus vacunas al día.",
-      vaccinesApplied: [
-        { name: "Rabia", status: "completed" },
-        { name: "Parvovirus", status: "completed" },
-        { name: "Distemper", status: "completed" },
-        { name: "Hepatitis", status: "completed" },
-        { name: "Leptospirosis", status: "completed" }
-      ],
-      ownerId: "carlos_mendoza",
-      status: "available",
-      photos: ["LUNA"],
-      characteristics: ["Cariñosa", "Tranquila", "Adaptable", "Inteligente"],
-      requirements: ["Familia cariñosa", "Atención regular"]
-    }
-  };
-
-  // Sample owner data
-  const ownersData = {
-    "maria_gonzalez": {
-      id: "maria_gonzalez",
-      name: "María González",
-      avatar: "MG",
-      profession: "Veterinaria",
-      location: "Quito, Pichincha",
-      phone: "+593 99 123 4567",
-      email: "maria@petconnect.com",
-      rating: 4.8,
-      adoptions: 5,
-      availableForAdoption: true
-    },
-    "carlos_mendoza": {
-      id: "carlos_mendoza",
-      name: "Carlos Mendoza",
-      avatar: "CM",
-      profession: "Ingeniero",
-      location: "Guayaquil, Guayas",
-      phone: "+593 98 765 4321",
-      email: "carlos@petconnect.com",
-      rating: 4.5,
-      adoptions: 3,
-      availableForAdoption: true
-    }
-  };
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // Load current user from localStorage
+    loadPetDetails();
+    loadCurrentUser();
+  }, [id]);
+
+  const loadCurrentUser = () => {
     const userData = localStorage.getItem("currentUser");
     if (userData) {
       setCurrentUser(JSON.parse(userData));
     }
+  };
 
-    // Load pet data
-    const petData = petsData[id];
-    if (petData) {
+  const loadPetDetails = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiService.pets.getById(id);
+      const petData = response.data.pet;
+
       setPet(petData);
-      setOwner(ownersData[petData.ownerId]);
-    } else {
-      // Pet not found
-      alert("Mascota no encontrada");
-      navigate("/search");
+      setOwner(petData.owner);
+    } catch (error) {
+      console.error("Error loading pet:", error);
+      setError("Error al cargar los detalles de la mascota");
+    } finally {
+      setIsLoading(false);
     }
-  }, [id, navigate]);
+  };
 
   const handleApplyForAdoption = async () => {
     if (!currentUser) {
@@ -118,18 +52,31 @@ export default function PetDetail() {
       return;
     }
 
-    setIsApplying(true);
+    if (!applicationMessage.trim()) {
+      setError("Por favor, escribe un mensaje explicando por qué quieres adoptar esta mascota");
+      return;
+    }
 
-    // Simulate API call
-    setTimeout(() => {
+    setIsApplying(true);
+    setError("");
+
+    try {
+      await apiService.pets.applyForAdoption(id, applicationMessage);
+
       setApplicationSent(true);
-      setIsApplying(false);
+      setShowApplicationForm(false);
+      setApplicationMessage("");
 
       // Show success message
       setTimeout(() => {
         setApplicationSent(false);
       }, 3000);
-    }, 2000);
+    } catch (error) {
+      console.error("Error applying for adoption:", error);
+      setError(error.message || "Error al enviar la aplicación");
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const handleContactOwner = () => {
@@ -192,7 +139,27 @@ export default function PetDetail() {
     };
   }, [showUserMenu]);
 
-  if (!pet || !owner) {
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'available': return 'Disponible para adopción';
+      case 'pending': return 'En proceso de adopción';
+      case 'adopted': return 'Ya adoptado';
+      case 'not_available': return 'No disponible';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'available': return '#4caf50';
+      case 'pending': return '#ff9800';
+      case 'adopted': return '#9c27b0';
+      case 'not_available': return '#f44336';
+      default: return '#666';
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="phone">
         <div className="header">
@@ -224,6 +191,29 @@ export default function PetDetail() {
     );
   }
 
+  if (!pet || !owner) {
+    return (
+      <div className="phone">
+        <div className="header">
+          <div className="back-btn" onClick={handleBack}>‹</div>
+          Error
+          <div className="header-icons">
+            <div className="icon" onClick={navigateToFeed}>🏠</div>
+            <div className="icon" onClick={toggleUserMenu}>👤</div>
+          </div>
+        </div>
+        <div className="content">
+          <div style={{ textAlign: "center", padding: "40px 20px" }}>
+            <p>{error || "Mascota no encontrada"}</p>
+            <button className="btn-primary" onClick={() => navigate("/search")}>
+              Buscar otras mascotas
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="phone">
       <div className="header">
@@ -248,85 +238,198 @@ export default function PetDetail() {
         )}
       </div>
       <div className="content">
+        {applicationSent && (
+          <div style={{
+            background: "#4caf50",
+            color: "white",
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            ¡Solicitud enviada! El propietario te contactará pronto.
+          </div>
+        )}
+
+        {error && (
+          <div style={{
+            background: "#f44336",
+            color: "white",
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="pet-detail">
-          <div className="pet-image">{pet.photos[0]}</div>
+          {/* Pet Images */}
+          <div className="pet-image">
+            {pet.images && pet.images.length > 0 ? (
+              <img
+                src={`http://localhost:5000${pet.images[0]}`}
+                alt={pet.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover"
+                }}
+              />
+            ) : (
+              <div style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "64px"
+              }}>
+                🐕
+              </div>
+            )}
+          </div>
+
           <div className="pet-info">
+            {/* Status Badge */}
+            <div style={{
+              background: getStatusColor(pet.status),
+              color: "white",
+              padding: "4px 12px",
+              borderRadius: "12px",
+              fontSize: "12px",
+              fontWeight: "600",
+              display: "inline-block",
+              marginBottom: "16px"
+            }}>
+              {getStatusLabel(pet.status)}
+            </div>
+
             <div className="pet-name">{pet.name}</div>
-            <div className="pet-breed">{pet.breed} • {pet.gender} • {pet.age} años</div>
+            <div className="pet-breed">
+              {pet.breed} • {pet.gender === 'male' ? 'Macho' : 'Hembra'} • {pet.age?.value || 0} {pet.age?.unit === 'years' ? 'años' : 'meses'}
+            </div>
+
+            {/* Basic Stats */}
             <div className="pet-stats">
               <div className="pet-stat">
-                <div className="pet-stat-value">{pet.weight}</div>
-                <div className="pet-stat-label">Peso</div>
-              </div>
-              <div className="pet-stat">
-                <div className="pet-stat-value">{pet.size}</div>
+                <div className="pet-stat-value">{pet.size === 'small' ? 'Pequeño' : pet.size === 'medium' ? 'Mediano' : pet.size === 'large' ? 'Grande' : 'Extra Grande'}</div>
                 <div className="pet-stat-label">Tamaño</div>
               </div>
               <div className="pet-stat">
-                <div className="pet-stat-value">{pet.vaccines}</div>
-                <div className="pet-stat-label">Vacunas</div>
+                <div className="pet-stat-value">{pet.color || 'N/A'}</div>
+                <div className="pet-stat-label">Color</div>
+              </div>
+              <div className="pet-stat">
+                <div className="pet-stat-value">{pet.health?.isVaccinated ? 'Sí' : 'No'}</div>
+                <div className="pet-stat-label">Vacunado</div>
               </div>
             </div>
 
+            {/* Description */}
             <div className="section">
               <h3>Descripción</h3>
               <p>{pet.description}</p>
             </div>
 
-            <div className="section">
-              <h3>Características</h3>
-              <div className="preference-tags">
-                {pet.characteristics.map(char => (
-                  <span key={char} className="preference-tag">{char}</span>
-                ))}
-              </div>
-            </div>
-
-            <div className="section">
-              <h3>Requisitos</h3>
-              <div className="preference-tags">
-                {pet.requirements.map(req => (
-                  <span key={req} className="preference-tag" style={{ background: "#fff3e0", color: "#f57c00" }}>
-                    {req}
+            {/* Characteristics */}
+            {pet.behavior?.temperament && (
+              <div className="section">
+                <h3>Características</h3>
+                <div className="preference-tags">
+                  <span className="preference-tag">
+                    {pet.behavior.temperament === 'calm' ? 'Tranquilo' :
+                      pet.behavior.temperament === 'energetic' ? 'Energético' :
+                        pet.behavior.temperament === 'shy' ? 'Tímido' :
+                          pet.behavior.temperament === 'friendly' ? 'Amigable' :
+                            pet.behavior.temperament === 'aggressive' ? 'Agresivo' :
+                              pet.behavior.temperament === 'playful' ? 'Juguetón' : pet.behavior.temperament}
                   </span>
-                ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="section">
-              <h3>Vacunas Aplicadas</h3>
-              <div className="vaccines">
-                {pet.vaccinesApplied.map(vaccine => (
-                  <span
-                    key={vaccine.name}
-                    className={`vaccine-tag ${vaccine.status === "pending" ? "pending" : ""}`}
-                  >
-                    {vaccine.name} {vaccine.status === "pending" ? "(Pendiente)" : ""}
-                  </span>
-                ))}
+            {/* Good With */}
+            {pet.behavior?.goodWith && (
+              <div className="section">
+                <h3>Se lleva bien con</h3>
+                <div className="preference-tags">
+                  {pet.behavior.goodWith.children && <span className="preference-tag">Niños</span>}
+                  {pet.behavior.goodWith.dogs && <span className="preference-tag">Perros</span>}
+                  {pet.behavior.goodWith.cats && <span className="preference-tag">Gatos</span>}
+                  {pet.behavior.goodWith.otherPets && <span className="preference-tag">Otras mascotas</span>}
+                </div>
               </div>
-            </div>
+            )}
 
+            {/* Special Needs */}
+            {pet.behavior?.specialNeeds && (
+              <div className="section">
+                <h3>Necesidades Especiales</h3>
+                <p>{pet.behavior.specialNeeds}</p>
+              </div>
+            )}
+
+            {/* Vaccines */}
+            {pet.health?.vaccines && pet.health.vaccines.length > 0 && (
+              <div className="section">
+                <h3>Vacunas Aplicadas</h3>
+                <div className="vaccines">
+                  {pet.health.vaccines.map((vaccine, index) => (
+                    <span
+                      key={index}
+                      className={`vaccine-tag ${vaccine.status === "pending" ? "pending" : ""}`}
+                    >
+                      {vaccine.name} {vaccine.status === "pending" ? "(Pendiente)" : ""}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Location */}
+            {pet.location && (
+              <div className="section">
+                <h3>Ubicación</h3>
+                <p>
+                  {pet.location.city}
+                  {pet.location.state && `, ${pet.location.state}`}
+                  {pet.location.country && `, ${pet.location.country}`}
+                </p>
+              </div>
+            )}
+
+            {/* Adoption Fee */}
+            {pet.adoptionFee > 0 && (
+              <div className="section">
+                <h3>Tarifa de Adopción</h3>
+                <p style={{ fontSize: "18px", fontWeight: "600", color: "#667eea" }}>
+                  ${pet.adoptionFee}
+                </p>
+              </div>
+            )}
+
+            {/* Owner Information */}
             <div className="section">
               <h3>Propietario</h3>
               <div className="profile-header">
                 <div className="avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
-                  {owner.avatar}
+                  {owner.avatar || owner.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div className="profile-info">
                   <h3 style={{ fontSize: 14 }}>{owner.name}</h3>
-                  <p>{owner.profession} • ⭐ {owner.rating}</p>
-                  <p style={{ color: "#4caf50", fontSize: 12 }}>
-                    {owner.availableForAdoption ? "Disponible para adopción" : "No disponible"}
-                  </p>
+                  <p>{owner.location?.city || 'Ubicación no especificada'}</p>
                 </div>
               </div>
 
               {showContactInfo && (
                 <div style={{ marginTop: 15, padding: 15, background: "#f8f9fa", borderRadius: 8 }}>
-                  <p style={{ marginBottom: 5 }}><strong>Teléfono:</strong> {owner.phone}</p>
-                  <p style={{ marginBottom: 5 }}><strong>Email:</strong> {owner.email}</p>
-                  <p><strong>Ubicación:</strong> {owner.location}</p>
+                  {owner.phone && <p style={{ marginBottom: 5 }}><strong>Teléfono:</strong> {owner.phone}</p>}
+                  {owner.email && <p style={{ marginBottom: 5 }}><strong>Email:</strong> {owner.email}</p>}
+                  {owner.location && (
+                    <p><strong>Ubicación:</strong> {owner.location.city}{owner.location.state && `, ${owner.location.state}`}</p>
+                  )}
                 </div>
               )}
 
@@ -339,27 +442,68 @@ export default function PetDetail() {
               </button>
             </div>
 
-            {applicationSent && (
-              <div className="success-message">
-                ¡Solicitud enviada! El propietario te contactará pronto.
+            {/* Application Form */}
+            {showApplicationForm && (
+              <div className="section">
+                <h3>Formulario de Aplicación</h3>
+                <p style={{ color: "#666", fontSize: "14px", marginBottom: "16px" }}>
+                  Cuéntanos por qué quieres adoptar a {pet.name} y cómo planeas cuidarlo.
+                </p>
+
+                <textarea
+                  value={applicationMessage}
+                  onChange={(e) => setApplicationMessage(e.target.value)}
+                  placeholder="Explica tu experiencia con mascotas, tu estilo de vida, y por qué serías un buen hogar para esta mascota..."
+                  rows="6"
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "16px",
+                    resize: "vertical",
+                    marginBottom: "16px"
+                  }}
+                />
+
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <button
+                    className="btn-primary"
+                    onClick={handleApplyForAdoption}
+                    disabled={isApplying}
+                    style={{ flex: 1 }}
+                  >
+                    {isApplying ? "Enviando..." : "Enviar Aplicación"}
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setShowApplicationForm(false);
+                      setApplicationMessage("");
+                      setError("");
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             )}
 
-            <button
-              className="btn-primary"
-              onClick={handleApplyForAdoption}
-              disabled={isApplying || !owner.availableForAdoption}
-              style={{
-                opacity: (isApplying || !owner.availableForAdoption) ? 0.7 : 1,
-                marginTop: 10
-              }}
-            >
-              {isApplying ? "Enviando solicitud..." : "Aplicar para Adoptar"}
-            </button>
+            {/* Action Buttons */}
+            {pet.status === 'available' && (
+              <button
+                className="btn-primary"
+                onClick={() => setShowApplicationForm(true)}
+                style={{ width: "100%", marginTop: 10 }}
+              >
+                Aplicar para Adoptar
+              </button>
+            )}
 
-            {!owner.availableForAdoption && (
+            {pet.status !== 'available' && (
               <p style={{ textAlign: "center", color: "#f57c00", fontSize: 12, marginTop: 10 }}>
-                Esta mascota ya no está disponible para adopción
+                Esta mascota no está disponible para adopción
               </p>
             )}
           </div>

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiService from "../services/api";
 
 export default function SearchPets() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("Todos");
   const [filteredPets, setFilteredPets] = useState([]);
+  const [allPets, setAllPets] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filters, setFilters] = useState({
     location: "",
     age: "",
@@ -16,106 +20,31 @@ export default function SearchPets() {
   });
   const navigate = useNavigate();
 
-  // Sample pets data
-  const petsData = [
-    {
-      id: "1",
-      name: "Max",
-      breed: "Golden Retriever",
-      type: "Perro",
-      gender: "Macho",
-      age: 3,
-      size: "Grande",
-      location: "Quito, Pichincha",
-      status: "available",
-      avatar: "MAX",
-      description: "Perro muy enérgico que necesita ejercicio diario",
-      vaccines: true,
-      owner: "María González"
-    },
-    {
-      id: "2",
-      name: "Luna",
-      breed: "Labrador Mix",
-      type: "Perro",
-      gender: "Hembra",
-      age: 2,
-      size: "Mediano",
-      location: "Guayaquil, Guayas",
-      status: "available",
-      avatar: "LUNA",
-      description: "Perrita cariñosa y tranquila, perfecta para familias",
-      vaccines: true,
-      owner: "Carlos Mendoza"
-    },
-    {
-      id: "3",
-      name: "Mittens",
-      breed: "Siamés",
-      type: "Gato",
-      gender: "Macho",
-      age: 1,
-      size: "Pequeño",
-      location: "Cuenca, Azuay",
-      status: "available",
-      avatar: "MI",
-      description: "Gato juguetón y curioso, ideal para apartamentos",
-      vaccines: true,
-      owner: "Ana López"
-    },
-    {
-      id: "4",
-      name: "Rocky",
-      breed: "Bulldog",
-      type: "Perro",
-      gender: "Macho",
-      age: 4,
-      size: "Mediano",
-      location: "Quito, Pichincha",
-      status: "adopted",
-      avatar: "RO",
-      description: "Perro tranquilo y leal, perfecto para familias con niños",
-      vaccines: false,
-      owner: "Dr. Veterinario"
-    },
-    {
-      id: "5",
-      name: "Bella",
-      breed: "Persa",
-      type: "Gato",
-      gender: "Hembra",
-      age: 2,
-      size: "Pequeño",
-      location: "Manta, Manabí",
-      status: "available",
-      avatar: "BE",
-      description: "Gata elegante y tranquila, busca un hogar amoroso",
-      vaccines: true,
-      owner: "Patricia Ruiz"
-    },
-    {
-      id: "6",
-      name: "Thor",
-      breed: "Husky Siberiano",
-      type: "Perro",
-      gender: "Macho",
-      age: 2,
-      size: "Grande",
-      location: "Quito, Pichincha",
-      status: "available",
-      avatar: "TH",
-      description: "Perro muy activo y sociable, necesita mucho ejercicio",
-      vaccines: true,
-      owner: "María González"
-    }
-  ];
+  useEffect(() => {
+    loadPets();
+  }, []);
 
   useEffect(() => {
     filterPets();
-  }, [searchTerm, activeTab, filters]);
+  }, [searchTerm, activeTab, filters, allPets]);
+
+  const loadPets = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const response = await apiService.pets.getAll();
+      setAllPets(response.data.pets);
+    } catch (error) {
+      console.error("Error loading pets:", error);
+      setError("Error al cargar las mascotas");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filterPets = () => {
-    let filtered = petsData;
+    let filtered = allPets;
 
     // Filter by search term
     if (searchTerm.trim()) {
@@ -123,26 +52,31 @@ export default function SearchPets() {
         pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pet.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pet.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pet.owner.toLowerCase().includes(searchTerm.toLowerCase())
+        pet.owner.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Filter by pet type
     if (activeTab !== "Todos") {
-      filtered = filtered.filter(pet => pet.type === activeTab);
+      const typeMap = {
+        "Perro": "dog",
+        "Gato": "cat"
+      };
+      filtered = filtered.filter(pet => pet.type === typeMap[activeTab]);
     }
 
     // Filter by location
     if (filters.location) {
       filtered = filtered.filter(pet =>
-        pet.location.toLowerCase().includes(filters.location.toLowerCase())
+        pet.location?.city?.toLowerCase().includes(filters.location.toLowerCase()) ||
+        pet.location?.state?.toLowerCase().includes(filters.location.toLowerCase())
       );
     }
 
     // Filter by age
     if (filters.age) {
       filtered = filtered.filter(pet => {
-        const petAge = pet.age;
+        const petAge = pet.age?.value || 0;
         switch (filters.age) {
           case "Cachorro":
             return petAge <= 1;
@@ -160,17 +94,26 @@ export default function SearchPets() {
 
     // Filter by size
     if (filters.size) {
-      filtered = filtered.filter(pet => pet.size === filters.size);
+      const sizeMap = {
+        "Pequeño": "small",
+        "Mediano": "medium",
+        "Grande": "large"
+      };
+      filtered = filtered.filter(pet => pet.size === sizeMap[filters.size]);
     }
 
     // Filter by gender
     if (filters.gender) {
-      filtered = filtered.filter(pet => pet.gender === filters.gender);
+      const genderMap = {
+        "Macho": "male",
+        "Hembra": "female"
+      };
+      filtered = filtered.filter(pet => pet.gender === genderMap[filters.gender]);
     }
 
     // Filter by vaccines
     if (filters.vaccines) {
-      filtered = filtered.filter(pet => pet.vaccines);
+      filtered = filtered.filter(pet => pet.health?.isVaccinated);
     }
 
     setFilteredPets(filtered);
@@ -244,6 +187,8 @@ export default function SearchPets() {
         return { background: "#e8f5e8", color: "#4caf50" };
       case "adopted":
         return { background: "#ffebee", color: "#f44336" };
+      case "pending":
+        return { background: "#fff3e0", color: "#ff9800" };
       default:
         return { background: "#f0f2f5", color: "#666" };
     }
@@ -255,10 +200,63 @@ export default function SearchPets() {
         return "Disponible";
       case "adopted":
         return "Adoptado";
+      case "pending":
+        return "En proceso";
       default:
         return "No disponible";
     }
   };
+
+  const getTypeLabel = (type) => {
+    switch (type) {
+      case "dog": return "Perro";
+      case "cat": return "Gato";
+      case "bird": return "Ave";
+      case "fish": return "Pez";
+      case "rabbit": return "Conejo";
+      case "hamster": return "Hamster";
+      case "other": return "Otro";
+      default: return type;
+    }
+  };
+
+  const getGenderLabel = (gender) => {
+    switch (gender) {
+      case "male": return "Macho";
+      case "female": return "Hembra";
+      default: return gender;
+    }
+  };
+
+  const getSizeLabel = (size) => {
+    switch (size) {
+      case "small": return "Pequeño";
+      case "medium": return "Mediano";
+      case "large": return "Grande";
+      case "extra-large": return "Extra Grande";
+      default: return size;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="phone">
+        <div className="header">
+          <div className="back-btn" onClick={() => navigate(-1)}>‹</div>
+          Cargando...
+          <div className="header-icons">
+            <div className="icon" onClick={navigateToFeed}>🏠</div>
+            <div className="icon" onClick={toggleUserMenu}>👤</div>
+          </div>
+        </div>
+        <div className="content">
+          <div style={{ textAlign: "center", padding: "40px 20px" }}>
+            <p>Cargando mascotas...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="phone">
@@ -283,6 +281,19 @@ export default function SearchPets() {
         )}
       </div>
       <div className="content">
+        {error && (
+          <div style={{
+            background: "#f44336",
+            color: "white",
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="feed-actions">
           <input
             type="text"
@@ -432,30 +443,49 @@ export default function SearchPets() {
           {filteredPets.length > 0 ? (
             filteredPets.map(pet => (
               <div
-                key={pet.id}
+                key={pet._id}
                 className="result-item"
-                onClick={() => handlePetClick(pet.id)}
+                onClick={() => handlePetClick(pet._id)}
                 style={{ cursor: "pointer" }}
               >
-                <div className="result-avatar">{pet.avatar}</div>
+                <div className="result-avatar">
+                  {pet.images && pet.images.length > 0 ? (
+                    <img
+                      src={`http://localhost:5000${pet.images[0]}`}
+                      alt={pet.name}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "50%",
+                        objectFit: "cover"
+                      }}
+                    />
+                  ) : (
+                    pet.name.substring(0, 2).toUpperCase()
+                  )}
+                </div>
                 <div className="result-info">
                   <h4>{pet.name}</h4>
-                  <p>{pet.breed} • {pet.gender} • {pet.age} años</p>
+                  <p>{pet.breed} • {getGenderLabel(pet.gender)} • {pet.age?.value || 0} {pet.age?.unit === 'years' ? 'años' : 'meses'}</p>
                   <p style={{ color: "#4caf50", fontSize: 11 }}>
-                    📍 {pet.location}
+                    📍 {pet.location?.city || 'Ubicación no especificada'}
+                    {pet.location?.state && `, ${pet.location.state}`}
                   </p>
                   <p style={{ fontSize: 11, color: "#666", marginTop: 5 }}>
                     {pet.description}
                   </p>
                   <div style={{ marginTop: 5 }}>
                     <span className="preference-tag" style={{ fontSize: 10, marginRight: 5 }}>
-                      {pet.size}
+                      {getSizeLabel(pet.size)}
                     </span>
-                    {pet.vaccines && (
+                    {pet.health?.isVaccinated && (
                       <span className="preference-tag" style={{ fontSize: 10, background: "#e8f5e8", color: "#4caf50" }}>
                         Vacunado
                       </span>
                     )}
+                    <span className="preference-tag" style={{ fontSize: 10, background: "#e3f2fd", color: "#1976d2" }}>
+                      {getTypeLabel(pet.type)}
+                    </span>
                   </div>
                 </div>
                 <div className="result-status" style={getStatusColor(pet.status)}>
@@ -465,14 +495,23 @@ export default function SearchPets() {
             ))
           ) : (
             <div style={{ textAlign: "center", padding: "40px 20px", color: "#666" }}>
-              <p>No se encontraron mascotas con los filtros aplicados</p>
-              <button
-                className="btn-primary"
-                onClick={handleClearFilters}
-                style={{ marginTop: 10 }}
-              >
-                Limpiar filtros
-              </button>
+              <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔍</div>
+              <p style={{ fontSize: "16px", marginBottom: "8px" }}>No se encontraron mascotas</p>
+              <p style={{ fontSize: "14px", marginBottom: "20px" }}>
+                {searchTerm || Object.values(filters).some(f => f)
+                  ? "con los filtros aplicados"
+                  : "Aún no hay mascotas disponibles para adopción"
+                }
+              </p>
+              {(searchTerm || Object.values(filters).some(f => f)) && (
+                <button
+                  className="btn-primary"
+                  onClick={handleClearFilters}
+                  style={{ marginTop: 10 }}
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           )}
         </div>

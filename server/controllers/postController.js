@@ -1,5 +1,5 @@
-const Post = require('../models/Post');
-const User = require('../models/User');
+import Post from '../models/Post.js';
+import User from '../models/User.js';
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -477,7 +477,7 @@ const searchPosts = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getPosts,
   getPostById,
   createPost,

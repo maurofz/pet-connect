@@ -1,4 +1,4 @@
-const User = require('../models/User');
+import User from '../models/User.js';
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -254,7 +254,7 @@ const getUserStats = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getUsers,
   getUserById,
   searchUsers,
